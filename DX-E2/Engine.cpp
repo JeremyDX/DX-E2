@@ -383,17 +383,6 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 
 			if (Msg.message == WM_QUIT || Msg.message == WM_DESTROY)
 			{
-				// Allocate a buffer for the message string.
-				char buffer[256];
-
-				// Format the message data into the buffer.
-				snprintf(buffer, sizeof(buffer),
-					"HWND: 0x%p, Message: 0x%X, wParam: 0x%p, lParam: 0x%p, Time: %lu, Pt: (%ld, %ld)\n",
-					Msg.hwnd, Msg.message, (void*)Msg.wParam, (void*)Msg.lParam, Msg.time, Msg.pt.x, Msg.pt.y);
-
-				// Output the formatted string to the debug output.
-				OutputDebugStringA(buffer);
-				KEEP_LOOPING = false;
 				return 0;
 			}
 		}

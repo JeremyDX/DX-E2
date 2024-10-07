@@ -54,5 +54,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 LRESULT CALLBACK WindowProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
+    switch (Msg)
+    {
+        case WM_DESTROY:
+        {
+            PostQuitMessage(0);
+            return 0;
+        }
+
+        case WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            return 0;
+        }
+    }
+
     return DefWindowProc(hWnd, Msg, wParam, lParam);
 }
