@@ -50,14 +50,16 @@ void CreatePipeline()
 	Microsoft::WRL::ComPtr<ID3D10Blob> VertexShaderBlob;
 	Microsoft::WRL::ComPtr<ID3D10Blob> PixelShaderBlob;
 
-	HRESULT hr3 = D3DReadFileToBlob(L"C:/Users/Jerem/source/repos/DirectX11-E/Debug/VertexShader.cso", VertexShaderBlob.GetAddressOf());
-	HRESULT hr4 = D3DReadFileToBlob(L"C:/Users/Jerem/source/repos/DirectX11-E/Debug/TexturePosition.cso", PixelShaderBlob.GetAddressOf());
+	// Compile Shaders
+	HRESULT HR1 = D3DCompileFromFile(L"vertexshader.hlsl", NULL, NULL, "main", "vs_4_0", NULL, NULL, VertexShaderBlob.GetAddressOf(), NULL);
+	HRESULT HR2 = D3DCompileFromFile(L"pixelshader.hlsl", NULL, NULL, "main", "ps_4_0", NULL, NULL, PixelShaderBlob.GetAddressOf(), NULL);
 
-	HRESULT HR1 = Engine::device->CreateVertexShader(VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), nullptr, &vertexshader);
-	HRESULT HR2 = Engine::device->CreatePixelShader(PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), nullptr, &pixelshader);
+	Engine::device->CreateVertexShader(VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), NULL, &vertexshader);
+	Engine::device->CreatePixelShader(PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), NULL, &pixelshader);
 
-	Engine::context->VSSetShader(vertexshader.Get(), nullptr, 0);
-	Engine::context->PSSetShader(pixelshader.Get(), nullptr, 0);
+	Engine::context->VSSetShader(vertexshader.Get(), NULL, 0);
+	Engine::context->PSSetShader(pixelshader.Get(), NULL, 0);
+
 	// create and set the input layout
 	Engine::device->CreateInputLayout(Constants::Layout_Byte32, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &inputlayout);
 	Engine::context->IASetInputLayout(inputlayout.Get());
