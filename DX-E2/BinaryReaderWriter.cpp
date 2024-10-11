@@ -7,7 +7,7 @@ uint16_t writer_position = 0;
 uint16_t reader_position = 0;
 uint16_t capacity = 0;
 
-void BinaryReaderWriter::ReadBinaryData(const char* name, char *buffer_reference, int& length)
+void BinaryReaderWriter::ReadBinaryData(const char* name, char* &buffer_reference, int& length)
 {
 	std::ifstream file(name, std::ios::binary | std::ios::in | std::ios::ate);
 	int file_size = static_cast<int>(file.tellg());
@@ -27,6 +27,29 @@ void BinaryReaderWriter::ReadBinaryData(const char* name, char *buffer_reference
 	length = file_size;
 	file.read(buffer_reference, file_size);
 	file.close();
+}
+
+bool BinaryReaderWriter::ReadTextFileIntoBuffer(const char* filename, char*& buffer, int& length)
+{
+	std::ifstream file(filename, std::ios::binary); // Open the file in binary mode
+	if (!file.is_open()) return false;               // Return false if the file cannot be opened
+
+	// Move to the end of the file to determine its size
+	file.seekg(0, std::ios::end);
+	length = file.tellg();                           // Get the file size
+	file.seekg(0, std::ios::beg);                   // Move back to the beginning of the file
+
+	buffer = (char*)malloc(length + 1);              // Allocate memory for the buffer
+	if (!buffer) {
+		file.close();
+		return false;                                // Return false if memory allocation fails
+	}
+
+	file.read(buffer, length);                       // Read the file into the buffer
+	buffer[length] = '\0';                           // Null-terminate the buffer
+
+	file.close();                                    // Close the file
+	return true;                                     // Return true on success
 }
 
 void WriteBinaryDataToBuffer(const WCHAR* name)

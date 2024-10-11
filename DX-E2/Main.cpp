@@ -3,7 +3,16 @@
 #include "Engine.h"
 #include "ScreenManagerSystem.h"
 
-#pragma comment(lib, "D3D11.lib")
+/*
+* Required Lib Files
+* Project Properties -> Linker -> Input -> Additional Dependencies 
+*  
+dxgi.lib
+d3dcompiler.lib
+d3d11.lib
+xinput.lib
+dxguid.lib
+*/
 
 LRESULT CALLBACK WindowProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam);
 

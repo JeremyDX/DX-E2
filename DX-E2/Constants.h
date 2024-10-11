@@ -3,6 +3,11 @@
 #include <d3d11.h>
 #include <cstdint>
 
+struct Vector3D
+{
+	float X, Y, Z;
+};
+
 struct Float2
 {
 	float _1, _2;

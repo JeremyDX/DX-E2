@@ -304,6 +304,7 @@ void ContentLoader::LoadWorldStage()
 	XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
 		0, 100 + (1 * 200) + 80, 100, 100 + (1 * 300) + 80);
 
+	/*
 	for (int x = 1; x < 48; ++x)
 	{
 		for (int z = 1; z < 10; ++z)
@@ -311,7 +312,7 @@ void ContentLoader::LoadWorldStage()
 			XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
 				0, 100 + (x * 200), 100, 100 + (z * 300));
 		}
-	}
+	}*/
 
 	Float3 v = { CreateShaderColor(1.0f, 1.0f), 1.0f, 1.0f };
 

@@ -5,8 +5,6 @@
 
 #include <cstdint>
 
-#pragma comment(lib, "XInput.lib")
-
 struct XBOX_CONTROLLER
 {
 	public:

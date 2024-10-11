@@ -9,145 +9,91 @@
 #include "XGameInput.h"
 #include "XModelMesh.h"
 
+#include <cstdio>
 #include <DirectXMath.h>
 
-const static uint32_t DEAD_ZONE = 4800 * 4800;
-const static double HALF_DEGREE_AS_RADIANS = 0.0087266462599;
-const static double ONE_DEGREE_AS_RADIANS = 0.01745329251;
-const static double NINETY_DEGREES_AS_RADIANS = 1.57079632679;
+void CreateFinalMatrixResult();
+
+constexpr float CONTROLLER_MAX_RANGE = 32767;
+constexpr float CONTROLLER_VALUE_SCALING = 1.0f / CONTROLLER_MAX_RANGE; // 0.00003125;
+constexpr double HALF_DEGREE_AS_RADIANS = 0.0087266462599;
+constexpr double ONE_DEGREE_AS_RADIANS = 0.01745329251;
+constexpr double NINETY_DEGREES_AS_RADIANS = 1.57079632679;
 
 DirectX::XMFLOAT4X4 CameraEngine::final_result;
 DirectX::XMFLOAT4X4 camera_matrix;
 
-//Primary Camera Sub Components.
-Float2 up;
-Float2 forward;
-Float2 right;
-Float2 test;
-Byte2 quadrants;
+Vector3D CameraUpVector;
+Vector3D CameraForwardVector;
+Vector3D CameraRightVector;
+Vector3D CameraPosition;
 
-//Player Position In World Space.
-Float3 player_position;
-Float3 camera_position;
+float ControllerDeadzoneOffset = 0.0f;
+float ControllerDeadzoneNormalizedMultiplier = 1.0f;
 
-//The Look Left/Right Rotation and Look Up/Down Rotation
-Int4 rotation_data;
-Int3 prompt_viewport;
+float CameraYaw;
+float CameraPitch;
+float CameraRoll;
 
-Float2 blocking_value[4];
+//Used for situations where we need to retain the values while we do actions so we can either A. Revert back to them or B. Lock the Camera to a specific direction.
+float CameraYawSnapshot;
+float CameraYawReturnRate;
 
-int64_t forced_animation_index = 0;
-Float4 anim_move_vectors = { 0.0f, 0.0f, 0.0f, 0.0f };
-Float3 base_animation_position = { 0.0f, 0.0f, 0.0f };
-Float3 teleport_position = { 0.0f, 0.0f, 0.0f };
+uint8_t CameraSensitivityInternalModifier = 10;
 
-Int2 animation_move_strength = { 0, 0 };
-bool throttled_jump = false;
-bool sprinting = false;
-bool crouched = false;
 
-bool send_camera_as_player = true;
-
-int HORIZONTAL_SPEED = 3;
-int VERTICAL_SPEED = 2;
-
-void CreateFinalMatrixResult()
+int GetCameraSensitivity()
 {
-	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH((float)(45 * ONE_DEGREE_AS_RADIANS), ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 300.0F);
-	DirectX::XMStoreFloat4x4(&CameraEngine::final_result, DirectX::XMLoadFloat4x4(&camera_matrix) * PROJECTION_MATRIX);
+	return CameraSensitivityInternalModifier;
 }
 
-void CameraEngine::ResetPrimaryCameraMatrix(const int FACE_DIRECTION)
+constexpr void CalculateDeadzoneModifiers(int ChangedDeadZonePercent)
 {
-	player_position._1 = 0.5F;
-	player_position._2 = 0.0F;
-	player_position._3 = 0.5F;
-
-	rotation_data._1 = 0;
-	rotation_data._2 = rotation_data._3 = FACE_DIRECTION * 32000;
-	rotation_data._4 = 0;
-
-	prompt_viewport._1 = -1;
-	prompt_viewport._2 =  0;
-	prompt_viewport._3 =  0;
-
-	up._1 = 0.0f;
-	up._2 = 1.0f;
-
-	double rotation = FACE_DIRECTION * ONE_DEGREE_AS_RADIANS;
-
-	forward._1 = (float)sin(rotation);
-	forward._2 = (float)cos(rotation);
-
-	rotation += NINETY_DEGREES_AS_RADIANS;
-
-	right._1 = (float)sin(rotation);
-	right._2 = (float)cos(rotation);
-
-	float SinH = forward._1 * 0.125F;
-	float CosH = forward._2 * 0.125F;
-	float SinW = forward._1 * 0.250F;
-	float CosW = forward._2 * 0.250F;
-
-	blocking_value[0]._1 = (CosW + SinH);
-	blocking_value[0]._2 = (-SinW + CosH);
-	blocking_value[1]._1 = (-CosW + SinH);
-	blocking_value[1]._2 = (SinW + CosH);
-
-	blocking_value[2]._1 = -blocking_value[0]._1;
-	blocking_value[2]._2 = -blocking_value[0]._2;
-	blocking_value[3]._1 = -blocking_value[1]._1;
-	blocking_value[3]._2 = -blocking_value[1]._2;
-
-	BuildPrimaryCameraMatrix();
-
-	//Not Sure Unused atm. 
-	camera_matrix._14 = 0.0F;
-	camera_matrix._24 = 0.0F;
-	camera_matrix._34 = 0.0F;
-	camera_matrix._44 = 1.0F;
-
-	CreateFinalMatrixResult();
+	//Reduce % to 0.0 to 0.9 then multiplies by 32000.
+	ControllerDeadzoneOffset = ChangedDeadZonePercent * 0.01f * CONTROLLER_MAX_RANGE;
+	ControllerDeadzoneNormalizedMultiplier = CONTROLLER_MAX_RANGE / (CONTROLLER_MAX_RANGE - ControllerDeadzoneOffset);
 }
 
-void CameraEngine::BuildPrimaryCameraMatrix()
+/*
+* Ends up returning a value ranging from deadzone minimum to 1.0f * DeltaFrame.
+*/ 
+bool CanSmoothAndNormalizeJoystickValue(float &Value, const float DeltaFrame)
 {
-	//Right Vector.
-	camera_matrix._11 = right._1; //Sin(Turn)
-	camera_matrix._21 = 0.0F;     //Always Flat at 0.0F.
-	camera_matrix._31 = right._2; //Cos(Turn)
+	if (Value > 16300 && Value < 16400)
+	{
+		int junk2 = 0;
+	}
 
-	//Up Vector.
-	camera_matrix._12 = up._1 * forward._1;   //Sin(Look) * Sin(Turn)
-	camera_matrix._22 = up._2;                //Cos(Look)
-	camera_matrix._32 = up._1 * forward._2;   //Sin(Look) * Cos(Turn)
+	if (Value < 0)
+	{
+		if (Value >= -ControllerDeadzoneOffset)
+		{
+			return false;
+		}
 
-	//Forward Vector.
-	camera_matrix._13 =  up._2 * forward._1; //Cos(Look) * Sin(Turn)
-	camera_matrix._23 = -up._1;              //Inverse of Sin(Look)
-	camera_matrix._33 =  up._2 * forward._2; //Cos(Look) * Cos(Turn)
+		Value += ControllerDeadzoneOffset + 1;
+		Value = Value * ControllerDeadzoneNormalizedMultiplier;
+		Value = floor((Value * Value * -CONTROLLER_VALUE_SCALING) + 0.5f);
+	} 
+	else 
+	{ 
+		if (Value <= ControllerDeadzoneOffset)
+		{
+			return false;
+		}
 
-	float xoffset = (player_position._1);
-	float zoffset = (player_position._3);
-	float height = (player_position._2 + 1.0f);
+		Value -= ControllerDeadzoneOffset;
+		Value = Value * ControllerDeadzoneNormalizedMultiplier;
+		Value = floor((Value * Value * CONTROLLER_VALUE_SCALING) + 0.5f);
+	}
 
-	if (crouched & 0x1)
-		height /= 2;
+	Value *= DeltaFrame;
+	Value *= CONTROLLER_VALUE_SCALING;
 
-	if (crouched & 0x2)
-		height /= 4;
-
-	//Dot Product (Position, Right Vector).
-	camera_matrix._41 = -(xoffset * camera_matrix._11 + height * camera_matrix._21 + zoffset * camera_matrix._31);
-
-	//Dot Product (Position, Up Vector).
-	camera_matrix._42 = -(xoffset * camera_matrix._12 + height * camera_matrix._22 + zoffset * camera_matrix._32);
-
-	//Dot Product (Position, Forward Vector).
-	camera_matrix._43 = -(xoffset * camera_matrix._13 + height * camera_matrix._23 + zoffset * camera_matrix._33);
-
+	return true;
 }
 
+/*
 void CameraEngine::UpdatePromptView()
 {
 	if (prompt_viewport._1 != -1)
@@ -168,283 +114,252 @@ void CameraEngine::UpdatePromptView()
 		}
 	}
 }
+*/
 
-bool teleport_animation_collided = false;
-
-static int TEST_JUMP_FRAMES = 0;
+/*
+uint64_t BaseAnimationFrameIndex = 0LLU;
+uint64_t CurrentAnimationFrameIndex = 0LLU;
+uint16_t AnimationIndexId = 0;
+Float2 LockedForward = { 0 };
+Float2 LockedRight = { 0 };
+*/
 
 bool CameraEngine::PrimaryCameraUpdatedLookAt()
 {
-	float delta_frame = min(GameTime::GetFrameTickDelta(), 1.0f);
+	//Time Slice from 0.0f to 0.0167 in event we're running slow. This is to prevent using Lag as a movement exploit and requires steady Target FPS amount.
+	const float DeltaFrame = min(GameTime::GetFrameTickDelta(), GameTime::GetFrameTickLimit());
 
-	int64_t current_frame = GameTime::GetAbsoluteFrameTicks();
-	Animation &ref = Animation::GetAnimation(2);
+	//Get Controller Strength's For Camera Movement & Camera Turning., Ranges from 0 (0%) to 32000 (100%)
+	float CameraRightStrength = static_cast<float>(XGameInput::GetLeftStickX());
+	float CameraForwardStrength = static_cast<float>(XGameInput::GetLeftStickY());
+	float CameraTurnStrength = static_cast<float>(XGameInput::GetRightStickX());
+	float CameraLookStrength = static_cast<float>(XGameInput::GetRightStickY());
 
-	bool updated = false;
-
-	XINPUT_GAMEPAD& loaded_pad = XGameInput::GamePad();
-
-	int right_strength = loaded_pad.sThumbLX; //Move Left Right Joystick.
-	int forward_strength = loaded_pad.sThumbLY; //Move Forward Back Joystick.
-
-	short turn_strength = loaded_pad.sThumbRX; //Turn Left Right Joystick.
-	short look_strength = loaded_pad.sThumbRY; //Look Up Down Joystick.
-
-	int abs_turn = turn_strength * turn_strength;
-	int abs_look = look_strength * look_strength;
-
-	int abs_forward = forward_strength * forward_strength;
-	int abs_right = right_strength * right_strength;
+	bool CameraNeedsUpdate = false;
 
 	if (XGameInput::AnyOfTheseButtonsArePressed(XBOX_CONTROLLER::LEFT_BUMPER))
 	{
-		TEST_JUMP_FRAMES += 1;
+		CameraYawSnapshot = CameraYaw;
+		CameraYawReturnRate = 0.0f;
 	}
 
-	if (XGameInput::AnyOfTheseButtonsArePressed(XBOX_CONTROLLER::LEFT_STICK_CLICK))
+	if (XGameInput::AnyOfTheseButtonsAreReleased(XBOX_CONTROLLER::LEFT_BUMPER))
 	{
-		sprinting = !sprinting; //Reverse Sprint State.
+		CameraYawReturnRate = (CameraYawSnapshot - CameraYaw) / 2.0f;
 	}
 
-	if (sprinting)
+	if (CanSmoothAndNormalizeJoystickValue(CameraTurnStrength, DeltaFrame))
 	{
-		sprinting = sprinting = forward_strength > 26000;
-		if (sprinting)
+		const float TurnCalculation = CameraTurnStrength * GetCameraSensitivity();
+
+		CameraYaw += TurnCalculation;
+
+		if (XGameInput::AnyOfTheseButtonsAreHolding(XBOX_CONTROLLER::LEFT_BUMPER))
 		{
-			forward_strength *= 2;
-		}
-	}
-
-	if (XGameInput::AnyOfTheseButtonsArePressed(XBOX_CONTROLLER::B_BUTTON))
-	{
-		//Crouching
-	}
-
-	if (XGameInput::AnyOfTheseButtonsArePressed(XBOX_CONTROLLER::A_BUTTON))
-	{
-		int64_t change = (current_frame - forced_animation_index);
-		if (change > 29)
-		{
-			forced_animation_index = current_frame;
-			base_animation_position._1 = player_position._1;
-			base_animation_position._2 = 0.0f;
-			base_animation_position._3 = player_position._3;
-			animation_move_strength._1 = abs_right > DEAD_ZONE ? right_strength : 0;
-			animation_move_strength._2 = abs_forward > DEAD_ZONE ? forward_strength : 0;
-
-			if (forward_strength <= 26000)
+			if (CameraYaw > CameraYawSnapshot)
 			{
-				animation_move_strength._1 >>= 1;
-				animation_move_strength._2 >>= 1;
-			}
-
-			anim_move_vectors._1 = right._1;
-			anim_move_vectors._2 = right._2;
-			anim_move_vectors._3 = forward._1;
-			anim_move_vectors._4 = forward._2;
-			sprinting = false;
-			teleport_animation_collided = false;
-		}
-	}
-
-	int64_t jump_frame = current_frame - forced_animation_index;
-
-	bool isJumping = jump_frame < 40;
-	bool isBlocking = jump_frame < 30;
-
-	if (isJumping)
-	{
-		updated = true;
-
-		Float2 verify = { 0.0f, 0.0f };
-
-		if (jump_frame <= 29)
-		{
-			float r_strength = (float)(animation_move_strength._1 * (jump_frame + 1)) / 600000L;
-			float f_strength = (float)(animation_move_strength._2 * (jump_frame + 1)) / 600000L;
-
-			verify._1 = r_strength * anim_move_vectors._1;
-			verify._2 = r_strength * anim_move_vectors._2;
-
-			verify._1 = verify._1 + (f_strength * anim_move_vectors._3);
-			verify._2 = verify._2 + (f_strength * anim_move_vectors._4);
-
-			int result = XModelMesh::CheckBasicCollision(base_animation_position, verify, rotation_data._2, prompt_viewport);
-
-			if (result > 0)
-			{
-				XModelMesh::CheckBasicCollision(base_animation_position, verify, rotation_data._2, prompt_viewport);
-			}
-
-			if (result == 0)
-			{
-				player_position._1 = base_animation_position._1 + verify._1;
-				player_position._3 = base_animation_position._3 + verify._2;
-			}
-		}
-
-		player_position._2 = 0.0F + Animation::GetTranslation(0, jump_frame) * 0.00125;
-
-		UpdatePromptView();
-	}
-
-	//If the player did in fact turn update the camera movement vectors. 
-	if (abs_turn > DEAD_ZONE)
-	{
-		int incremented = turn_strength * delta_frame * HORIZONTAL_SPEED;
-		rotation_data._2 += incremented;
-
-		int angle = rotation_data._2 - rotation_data._3 - rotation_data._4;
-
-		if (rotation_data._2 < 0)
-		{
-			rotation_data._2 += 11520000;
-			rotation_data._4 += 11520000;
-		}
-
-		if (rotation_data._2 >= 0xAFC800)
-		{
-			rotation_data._2 -= 11520000;
-			rotation_data._4 -= 11520000;
-		}
-
-		bool rotated = angle >= 2880000 || angle <= -2880000;
-
-		if (rotated)
-		{
-			if (angle < 0)
-			{
-				rotation_data._3 -= 2880000;
-				if (rotation_data._3 < 0)
+				float YawDifference = CameraYaw - CameraYawSnapshot;
+				if (YawDifference > 140.0f)
 				{
-					rotation_data._3 += 11520000;
-					rotation_data._4 = 0;
+					CameraYaw = CameraYawSnapshot + 140.0f;
 				}
-
-			}
+			} 
 			else
 			{
-				rotation_data._3 += 2880000;
-				if (rotation_data._3 >= 11520000)
+				float YawDifference = CameraYawSnapshot - CameraYaw;
+				if (YawDifference > 140.0f)
 				{
-					rotation_data._3 -= 11520000;
-					rotation_data._4 = 0;
+					CameraYaw = CameraYawSnapshot - 140.0f;
 				}
 			}
-
-			rotation_data._2 = rotation_data._3;
 		}
-		
-		UpdatePromptView();
 
-		double rotation = rotation_data._2 * 0.00003125 * ONE_DEGREE_AS_RADIANS;
+		double RotationAsRadians = CameraYaw * ONE_DEGREE_AS_RADIANS;
+		double PitchAsRadians = (90 - fabs(CameraPitch)) * ONE_DEGREE_AS_RADIANS;
 
-		forward._1 = (float)sin(rotation);
-		forward._2 = (float)cos(rotation);
+		CameraForwardVector.X = static_cast<float>(sin(RotationAsRadians));
+		CameraForwardVector.Z = static_cast<float>(cos(RotationAsRadians));
+		CameraRightVector.X = CameraForwardVector.Z;
+		CameraRightVector.Z = -CameraForwardVector.X;
+		//CameraPosition.X -= CameraRightVector.X * DeltaFrame * 0.01;
+		//CameraPosition.Z -= CameraRightVector.Z * DeltaFrame * 0.01;
 
-		rotation += NINETY_DEGREES_AS_RADIANS;
 
-		right._1 = (float)sin(rotation);
-		right._2 = (float)cos(rotation);
+		// Adjust 0.005 based on the pitch factor
+		//float AdjustedValue = 0.001f * fabs(CameraPitch) * CameraForwardVector.Z; // Reduce as pitch approaches -90 or 90
 
-		updated = true;
+
+		//CameraPosition.X -= CameraForwardVector.Z * AdjustedValue * DeltaFrame;
+		//CameraPosition.Z += CameraForwardVector.X * AdjustedValue * DeltaFrame;
+
+		CameraNeedsUpdate = true;
 	}
 
-	if (abs_look > DEAD_ZONE)
+	if (CanSmoothAndNormalizeJoystickValue(CameraLookStrength, DeltaFrame))
 	{
-		const int RANGE = 65 * 32000;
+		const float LookCalculation = CameraLookStrength * GetCameraSensitivity();
 
-		rotation_data._1 -= (look_strength * delta_frame * VERTICAL_SPEED);
+		CameraPitch += LookCalculation;
 
-		if (rotation_data._1 < -RANGE)
-			rotation_data._1 = -RANGE;
+		constexpr float PitchLimit = 85.0f;
 
-		if (rotation_data._1 > RANGE)
-			rotation_data._1 = RANGE;
+		if (CameraPitch > PitchLimit)
+		{
+			CameraPitch = PitchLimit;
+		} 
+		else if (CameraPitch < -PitchLimit)
+		{
+			CameraPitch = -PitchLimit;
+		}
 
-		float value = (float)(rotation_data._1 * 0.00003125 * ONE_DEGREE_AS_RADIANS);
+		double RotationAsRadians = CameraPitch * ONE_DEGREE_AS_RADIANS;
 
-		up._1 = (float)sin(value);
-		up._2 = (float)cos(value);
+		CameraUpVector.X = -static_cast<float>(sin(RotationAsRadians));
+		CameraUpVector.Z = static_cast<float>(cos(RotationAsRadians));
 
-		updated = true;
+		CameraNeedsUpdate = true;
 	}
 
-	if (!isBlocking)
+	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{
-		Float2 verify = { 0.0f, 0.0f };
-
-		bool moved = false;
-
-		if (abs_forward > DEAD_ZONE)
-		{
-			float strength = (float)(forward_strength * delta_frame) / 600000L;
-			verify._1 += strength * forward._1; //SinX
-			verify._2 += strength * forward._2; //CosZ
-			moved = true;
-		}
-
-		//125 Frames = 80 CM = 1 Unit.
-		//18.31 Frames = 80 CM = 1 Unit.
-
-		if (abs_right > DEAD_ZONE)
-		{
-			float strength = (float)(right_strength * delta_frame) / 600000L;
-			verify._1 += strength * right._1; //SinX
-			verify._2 += strength * right._2; //CosZ
-			moved = true;
-		}
-
-		if (moved)
-		{
-			int64_t t1 = GameTime::GetCurrentTimeMicros();
-			int result = XModelMesh::CheckBasicCollision(player_position, verify, rotation_data._2, prompt_viewport);
-
-			if (result > 0)
-			{
-				XModelMesh::CheckBasicCollision(player_position, verify, rotation_data._2, prompt_viewport);
-			}
-			player_position._1 += verify._1;
-			player_position._3 += verify._2;
-
-			UpdatePromptView();
-
-			int angle = rotation_data._2 - rotation_data._3 - rotation_data._4;
-
-			if (angle != 0)
-			{
-				rotation_data._3 += angle;
-				if (rotation_data._3 < 0)
-				{
-					rotation_data._3 += 11520000;
-					rotation_data._4 -= 11520000;
-				}
-				else if (rotation_data._3 >= 11520000)
-				{
-					rotation_data._3 -= 11520000;
-					rotation_data._4 += 11520000;
-				}
-
-				int quadrant = rotation_data._3 / 2880000;
-			}
-			updated = true;
-		}
+		CameraPosition.X += CameraForwardVector.X * CameraForwardStrength * 0.075;// *10.6761565836;
+		CameraPosition.Z += CameraForwardVector.Z * CameraForwardStrength * 0.075;
+		CameraNeedsUpdate = true;
 	}
 
-	if (player_position._1 < 0.5f)
-		player_position._1 = 0.5f;
-	else if (player_position._1 > 95.5f)
-		player_position._1 = 95.5f;
-	if (player_position._3 < 0.5f)
-		player_position._3 = 0.5f;
-	else if (player_position._3 > 95.5f)
-		player_position._3 = 95.5f;
-
-	if (updated)
+	if (CanSmoothAndNormalizeJoystickValue(CameraRightStrength, DeltaFrame))
 	{
+		CameraPosition.X += CameraRightVector.X * CameraRightStrength * 0.075;
+		CameraPosition.Z += CameraRightVector.Z * CameraRightStrength * 0.075;
+		CameraNeedsUpdate = true;
+	}
+
+	if (CameraNeedsUpdate)
+	{
+
 		BuildPrimaryCameraMatrix();
 		CreateFinalMatrixResult();
 	}
 
-	return updated;
+	return CameraNeedsUpdate;
+}
+
+/*
+void CreateFinalMatrixResult()
+{
+	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH((float)(45 * ONE_DEGREE_AS_RADIANS), ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 300.0F);
+	DirectX::XMStoreFloat4x4(&CameraEngine::final_result, DirectX::XMLoadFloat4x4(&camera_matrix) * PROJECTION_MATRIX);
+}
+*/
+
+void CreateFinalMatrixResult()
+{
+	// Define the horizontal FOV in degrees
+	float horizontalFOVDegrees = 90.0f; // Set your desired horizontal FOV here
+	float aspectRatio = ScreenManagerSystem::GetScreenAspectRatio(); // Get the aspect ratio of your window
+
+	// Convert horizontal FOV to vertical FOV
+	float horizontalFOVRadians = horizontalFOVDegrees * ONE_DEGREE_AS_RADIANS;
+	float verticalFOVRadians = 2 * atan(tan(horizontalFOVRadians / 2) / aspectRatio);
+
+	// Create the projection matrix with the calculated vertical FOV
+	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(verticalFOVRadians, aspectRatio, 0.1F, 300.0F);
+
+	// Store the final result
+	DirectX::XMStoreFloat4x4(&CameraEngine::final_result, DirectX::XMLoadFloat4x4(&camera_matrix) * PROJECTION_MATRIX);
+}
+
+void CameraEngine::ResetPrimaryCameraMatrix(float FACE_DIRECTION)
+{
+	CameraYaw = FACE_DIRECTION;
+
+	CalculateDeadzoneModifiers(10);
+
+	CameraPosition.X = 1.0F;
+	CameraPosition.Y = 0.0F;
+	CameraPosition.Z = 1.0F;
+
+	//rotation_data._1 = 0;
+	//rotation_data._2 = rotation_data._3 = FACE_DIRECTION * 32000;
+	//rotation_data._4 = 0;
+
+	//prompt_viewport._1 = -1;
+	//prompt_viewport._2 =  0;
+	//prompt_viewport._3 =  0;
+
+	CameraUpVector.X = 0.0f;
+	CameraUpVector.Z = 1.0f;
+
+	double rotation = FACE_DIRECTION * ONE_DEGREE_AS_RADIANS;
+
+	CameraForwardVector.X = (float)sin(rotation);
+	CameraForwardVector.Z = (float)cos(rotation);
+
+	rotation += NINETY_DEGREES_AS_RADIANS;
+
+	CameraRightVector.X = (float)sin(rotation);
+	CameraRightVector.Z = (float)cos(rotation);
+
+	/*
+	float SinH = CameraForwardVector.X * 0.125F;
+	float CosH = CameraForwardVector.Z * 0.125F;
+	float SinW = CameraForwardVector.X * 0.250F;
+	float CosW = CameraForwardVector.Z * 0.250F;
+
+	blocking_value[0]._1 = (CosW + SinH);
+	blocking_value[0]._2 = (-SinW + CosH);
+	blocking_value[1]._1 = (-CosW + SinH);
+	blocking_value[1]._2 = (SinW + CosH);
+
+	blocking_value[2]._1 = -blocking_value[0]._1;
+	blocking_value[2]._2 = -blocking_value[0]._2;
+	blocking_value[3]._1 = -blocking_value[1]._1;
+	blocking_value[3]._2 = -blocking_value[1]._2;
+	*/
+
+	BuildPrimaryCameraMatrix();
+
+	//Not Sure Unused atm. 
+	camera_matrix._14 = 0.0F;
+	camera_matrix._24 = 0.0F;
+	camera_matrix._34 = 0.0F;
+	camera_matrix._44 = 1.0F;
+
+	CreateFinalMatrixResult();
+}
+
+void CameraEngine::BuildPrimaryCameraMatrix()
+{
+	//Right Vector.
+	camera_matrix._11 = CameraRightVector.X; //Sin(Turn)
+	camera_matrix._21 = 0.0F;     //Always Flat at 0.0F.
+	camera_matrix._31 = CameraRightVector.Z; //Cos(Turn)
+
+	//Up Vector.
+	camera_matrix._12 = CameraUpVector.X * CameraForwardVector.X;   //Sin(Look) * Sin(Turn)
+	camera_matrix._22 = CameraUpVector.Z;                //Cos(Look)
+	camera_matrix._32 = CameraUpVector.X * CameraForwardVector.Z;   //Sin(Look) * Cos(Turn)
+
+	//Forward Vector.
+	camera_matrix._13 = CameraUpVector.Z * CameraForwardVector.X; //Cos(Look) * Sin(Turn)
+	camera_matrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
+	camera_matrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
+
+	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X);
+	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z);
+	const float CameraHeight = CameraPosition.Y + 1;
+
+	//Dot Product (Position, Right Vector).
+	camera_matrix._41 = -(CameraXOffset * camera_matrix._11 + CameraHeight * camera_matrix._21 + CameraZOffset * camera_matrix._31);
+
+	//Dot Product (Position, Up Vector).
+	camera_matrix._42 = -(CameraXOffset * camera_matrix._12 + CameraHeight * camera_matrix._22 + CameraZOffset * camera_matrix._32);
+
+	//Dot Product (Position, Forward Vector).
+	camera_matrix._43 = -(CameraXOffset * camera_matrix._13 + CameraHeight * camera_matrix._23 + CameraZOffset * camera_matrix._33);
+}
+
+void CameraEngine::GetDebugString(char* Out_Chars, int CharLength)
+{
+	sprintf_s(Out_Chars, CharLength, "FwdVec: [X: %f, Z: %f], Pos: [X: %f Y: %f Z: %f] Pitch: %f, Yaw: %f", CameraForwardVector.X, CameraForwardVector.Z, CameraPosition.X, CameraPosition.Y, CameraPosition.Z, CameraPitch, CameraYaw);
 }

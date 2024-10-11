@@ -18,9 +18,7 @@ float SecondsPerCounterCycle;					//Initialize Sets to 1.0 / Frequency -- How mu
 float ClockCyclesPerUpdateHzRate;				//Initialize Sets this to (Frequency / Target Hz Rate). This is how many clock cycles will equal a Target Frame Rate Singular Frame.
 float CyclesPerMicrosecond;						//Initialize Sets this to (Frequency / 1 MILLION). This is how many Clock Cycles will create a full MicroSecond. We use float as this is more precise then seconds.
 
-
-
-constexpr float FPS_REFRESH_RATE = 1.0F;		//The Rate at which the FPS Counter updates. Anything below 1.F will likely hurt performance as this updates the Window Title.
+float CurrentTargetFrameTimeInSeconds;
 
 void GameTime::Initialize(int UpdateHzRate)
 {
@@ -32,6 +30,8 @@ void GameTime::Initialize(int UpdateHzRate)
 	SecondsPerCounterCycle = 1.0f / static_cast<float>(CyclesPerSecond);
 	ClockCyclesPerUpdateHzRate = CyclesPerSecond / static_cast<float>(UpdateHzRate); //166666.666667 @ 60hz
 	CyclesPerMicrosecond = static_cast<float>(CyclesPerSecond) / 1000000.0f; //In most cases this should be 10.0f
+
+	CurrentTargetFrameTimeInSeconds = 1.0f / UpdateHzRate;
 
 	//Gets the Current TimeStamp that we excute our ticking system.
 	QueryPerformanceCounter(&StartingTimeStamp);
@@ -64,6 +64,11 @@ void GameTime::Tick()
 uint64_t GameTime::GetAbsoluteFrameTicks()
 {
 	return static_cast<uint64_t>(TotalRunningCyclesElapsed / ClockCyclesPerUpdateHzRate);
+}
+
+float GameTime::GetFrameTickLimit()
+{
+	return CurrentTargetFrameTimeInSeconds;
 }
 
 float GameTime::GetFrameTickDelta()

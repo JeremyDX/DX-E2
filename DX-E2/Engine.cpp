@@ -8,6 +8,7 @@
 #include "Animation.h"
 #include "ScreenManagerSystem.h"
 #include <d3dcompiler.h>
+#include "BinaryReaderWriter.h"
 #include <cstdio>
 
 using namespace Microsoft::WRL;
@@ -50,9 +51,23 @@ void CreatePipeline()
 	Microsoft::WRL::ComPtr<ID3D10Blob> VertexShaderBlob;
 	Microsoft::WRL::ComPtr<ID3D10Blob> PixelShaderBlob;
 
+	char* VertexShaderString = NULL;
+	int VertexShaderLength = 0;
+	BinaryReaderWriter::ReadTextFileIntoBuffer("VertexShader.hlsl", VertexShaderString, VertexShaderLength);
+
+	char* PixelShaderString = NULL;
+	int PixelShaderLength = 0;
+	BinaryReaderWriter::ReadTextFileIntoBuffer("PixelShader.hlsl", PixelShaderString, PixelShaderLength);
+
 	// Compile Shaders
-	HRESULT HR1 = D3DCompileFromFile(L"vertexshader.hlsl", NULL, NULL, "main", "vs_4_0", NULL, NULL, VertexShaderBlob.GetAddressOf(), NULL);
-	HRESULT HR2 = D3DCompileFromFile(L"pixelshader.hlsl", NULL, NULL, "main", "ps_4_0", NULL, NULL, PixelShaderBlob.GetAddressOf(), NULL);
+	if (VertexShaderString == NULL || PixelShaderString == NULL)
+	{
+		ENGINE_ERROR_CODE = 2;
+		return;
+	}
+
+	HRESULT HR1 = D3DCompile(VertexShaderString, VertexShaderLength, NULL, NULL, NULL, "main", "vs_5_0", NULL, NULL, VertexShaderBlob.GetAddressOf(), NULL);
+	HRESULT HR2 = D3DCompile(PixelShaderString, PixelShaderLength, NULL, NULL, NULL, "main", "ps_5_0", NULL, NULL, PixelShaderBlob.GetAddressOf(), NULL);
 
 	Engine::device->CreateVertexShader(VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), NULL, &vertexshader);
 	Engine::device->CreatePixelShader(PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), NULL, &pixelshader);
@@ -71,9 +86,7 @@ void CreatePipeline()
 	bd.ByteWidth = 64U;
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
-	Engine::device->CreateBuffer(&bd, nullptr, &d3d_const_buffer);
-
-	DirectX::XMFLOAT4X4 IDENTITY =
+	constexpr DirectX::XMFLOAT4X4 IDENTITY =
 	{
 		1, 0, 0, 0,
 		0, 1, 0, 0,
@@ -83,10 +96,31 @@ void CreatePipeline()
 
 	D3D11_SUBRESOURCE_DATA view_srd = { &IDENTITY, 0, 0 };
 
+	Engine::device->CreateBuffer(&bd, nullptr, &d3d_const_buffer);
 	Engine::device->CreateBuffer(&bd, &view_srd, &d2d_const_buffer);
 
 	Engine::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
+
+void PostLevelLoading()
+{
+	D3D11_SAMPLER_DESC SamplerDesc = {};
+	SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT; // Point filtering (no interpolation)
+	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;  // Clamp addressing mode for U coordinate
+	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;  // Clamp addressing mode for V coordinate
+	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;  // Clamp addressing mode for W coordinate
+
+	// Create the sampler state
+	ID3D11SamplerState* SamplerState = nullptr;
+
+	HRESULT HR8 = Engine::device->CreateSamplerState(&SamplerDesc, &SamplerState);
+
+	ID3D11ShaderResourceView** Resource3 = ContentLoader::GetTextureAddress(3);
+
+	Engine::context->VSSetShaderResources(0, 1, Resource3); // Bind height map to slot t0
+	Engine::context->VSSetSamplers(0, 1, &SamplerState);
+}
+
 
 void InitializeDirectXProperties(const HWND& hWnd)
 {
@@ -242,6 +276,7 @@ void InitializeDirectXProperties(const HWND& hWnd)
 
 	ContentLoader::AllocateVertexBuffers();
 	ContentLoader::LoadContentStage(0); //First Content Batch.
+	PostLevelLoading();
 	ContentLoader::PresentWindow(0);    //Show Us The First Screen!!
 
 	Animation::LoadAnimations();
@@ -381,7 +416,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			TranslateMessage(&Msg);
 			DispatchMessage(&Msg);
 
-			if (Msg.message == WM_QUIT || Msg.message == WM_DESTROY)
+			if (Msg.message == WM_QUIT)
 			{
 				return 0;
 			}
@@ -397,8 +432,10 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 		float TotalFPS;
 		if (GameTime::GetFPSDisplayCounterRate(1.0f, TotalFPS))
 		{
-			char Message[48];
-			sprintf_s(Message, "FPS: %f (%.4f MS)", TotalFPS, 1000.0f / TotalFPS);
+			char Message[464];
+			char CameraDebugString[460];
+			CameraEngine::GetDebugString(CameraDebugString, sizeof(CameraDebugString));
+			sprintf_s(Message, "FPS: %f (%.4f MS), ABS Ticks: %llu, DebugString: %s", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString);
 			SetWindowTextA(hWnd, Message);
 		}
 	}

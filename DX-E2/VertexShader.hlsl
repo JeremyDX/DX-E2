@@ -10,11 +10,17 @@ struct VOut
 	float2 texcoord : TEXCOORD;        // texture coordinates
 };
 
+Texture2D colorMap : register(t0);
+SamplerState colorSampler : register(s0);
+
 //target vs_4_0_level_9_3
 
 VOut main(float4 position : POSITION, float4 color : COLOR, float2 texcoord : TEXCOORD)
 {
 	VOut output;
+
+	//float4 colors = colorMap.SampleLevel(colorSampler, float4(position.x * 0.001, position.z * 0.001, 0, 0), 0);
+	//position.y = colors.x * 128;
 
 	output.position = mul(view_matrix, position);
 	int base1 = (int)(color.r / 256); //0-255
