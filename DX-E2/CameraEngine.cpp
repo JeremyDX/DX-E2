@@ -201,7 +201,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 		CameraPitch += LookCalculation;
 
-		constexpr float PitchLimit = 85.0f;
+		constexpr float PitchLimit = 89.5f;
 
 		if (CameraPitch > PitchLimit)
 		{
@@ -345,8 +345,8 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 	camera_matrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
 	camera_matrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
 
-	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X);
-	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z);
+	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f);
+	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f);
 	const float CameraHeight = CameraPosition.Y + 1;
 
 	//Dot Product (Position, Right Vector).
