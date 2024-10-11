@@ -282,7 +282,6 @@ void InitializeDirectXProperties(const HWND& hWnd)
 	Animation::LoadAnimations();
 }
 
-
 void Update()
 {
 	//Handle Updates to Window if we have one open.
@@ -312,8 +311,6 @@ void Update()
 
 UINT stride = sizeof(Vertex32Byte);
 UINT offset = 0;
-
-
 
 void Render()
 {

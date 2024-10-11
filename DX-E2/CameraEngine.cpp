@@ -244,26 +244,10 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 	return CameraNeedsUpdate;
 }
 
-/*
 void CreateFinalMatrixResult()
 {
-	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH((float)(45 * ONE_DEGREE_AS_RADIANS), ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 300.0F);
-	DirectX::XMStoreFloat4x4(&CameraEngine::final_result, DirectX::XMLoadFloat4x4(&camera_matrix) * PROJECTION_MATRIX);
-}
-*/
-
-void CreateFinalMatrixResult()
-{
-	// Define the horizontal FOV in degrees
-	float horizontalFOVDegrees = 90.0f; // Set your desired horizontal FOV here
-	float aspectRatio = ScreenManagerSystem::GetScreenAspectRatio(); // Get the aspect ratio of your window
-
-	// Convert horizontal FOV to vertical FOV
-	float horizontalFOVRadians = horizontalFOVDegrees * ONE_DEGREE_AS_RADIANS;
-	float verticalFOVRadians = 2 * atan(tan(horizontalFOVRadians / 2) / aspectRatio);
-
 	// Create the projection matrix with the calculated vertical FOV
-	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(verticalFOVRadians, aspectRatio, 0.1F, 300.0F);
+	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(60 * ONE_DEGREE_AS_RADIANS, ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 300.0F);
 
 	// Store the final result
 	DirectX::XMStoreFloat4x4(&CameraEngine::final_result, DirectX::XMLoadFloat4x4(&camera_matrix) * PROJECTION_MATRIX);
@@ -345,9 +329,11 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 	camera_matrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
 	camera_matrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
 
-	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f);
-	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f);
-	const float CameraHeight = CameraPosition.Y + 1;
+	const float Height = 2.0f;
+
+	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f * Height);
+	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f * Height);
+	const float CameraHeight = CameraPosition.Y + Height;
 
 	//Dot Product (Position, Right Vector).
 	camera_matrix._41 = -(CameraXOffset * camera_matrix._11 + CameraHeight * camera_matrix._21 + CameraZOffset * camera_matrix._31);
