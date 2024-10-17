@@ -73,7 +73,8 @@ float GameTime::GetFrameTickLimit()
 
 float GameTime::GetFrameTickDelta()
 {
-	return LastTickDeltaCycles / ClockCyclesPerUpdateHzRate;
+	//NEED TO FIX?
+	return 0.0f; // (LastTickDeltaCycles / ClockCyclesPerUpdateHzRate)* GetFrameTickLimit();
 }
 
 uint64_t GameTime::GetTotalTickLoopsExecuted()
@@ -84,6 +85,11 @@ uint64_t GameTime::GetTotalTickLoopsExecuted()
 uint64_t GameTime::TotalElapsedClockCycles()
 {
 	return TotalRunningCyclesElapsed;
+}
+
+float GameTime::GetDeltaElapsedTime()
+{
+	return LastTickDeltaCycles * SecondsPerCounterCycle;
 }
 
 float GameTime::GetElapsedRunningTimeInSeconds()

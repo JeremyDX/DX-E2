@@ -7,6 +7,7 @@ class Engine
 {
 	public:
 		static void Stop();
+		static void Reset();
 		static int StartGameLoop(void* vRawHWNDPtr);
 
 	public:

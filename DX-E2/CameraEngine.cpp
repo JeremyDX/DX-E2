@@ -34,12 +34,13 @@ float ControllerDeadzoneNormalizedMultiplier = 1.0f;
 float CameraYaw;
 float CameraPitch;
 float CameraRoll;
+float DistanceTraveled = 0;
 
 //Used for situations where we need to retain the values while we do actions so we can either A. Revert back to them or B. Lock the Camera to a specific direction.
 float CameraYawSnapshot;
 float CameraYawReturnRate;
 
-uint8_t CameraSensitivityInternalModifier = 10;
+uint8_t CameraSensitivityInternalModifier = 1000;
 
 
 int GetCameraSensitivity()
@@ -59,11 +60,6 @@ constexpr void CalculateDeadzoneModifiers(int ChangedDeadZonePercent)
 */ 
 bool CanSmoothAndNormalizeJoystickValue(float &Value, const float DeltaFrame)
 {
-	if (Value > 16300 && Value < 16400)
-	{
-		int junk2 = 0;
-	}
-
 	if (Value < 0)
 	{
 		if (Value >= -ControllerDeadzoneOffset)
@@ -124,10 +120,19 @@ Float2 LockedForward = { 0 };
 Float2 LockedRight = { 0 };
 */
 
+float DistanceBetweenVectors(const Vector3D& A, const Vector3D& B) {
+	float dx = B.X - A.X;
+	float dy = B.Y - A.Y;
+	float dz = B.Z - A.Z;
+	return sqrtf(dx * dx + dy * dy + dz * dz);
+}
+
+bool bIsSprinting = false;
+
 bool CameraEngine::PrimaryCameraUpdatedLookAt()
 {
 	//Time Slice from 0.0f to 0.0167 in event we're running slow. This is to prevent using Lag as a movement exploit and requires steady Target FPS amount.
-	const float DeltaFrame = min(GameTime::GetFrameTickDelta(), GameTime::GetFrameTickLimit());
+	const float DeltaFrame = min(GameTime::GetDeltaElapsedTime(), GameTime::GetFrameTickLimit());
 
 	//Get Controller Strength's For Camera Movement & Camera Turning., Ranges from 0 (0%) to 32000 (100%)
 	float CameraRightStrength = static_cast<float>(XGameInput::GetLeftStickX());
@@ -137,16 +142,18 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 	bool CameraNeedsUpdate = false;
 
-	if (XGameInput::AnyOfTheseButtonsArePressed(XBOX_CONTROLLER::LEFT_BUMPER))
+	if (XGameInput::IsControllerActionPressed(InputActions::HOLD_LOOK))
 	{
 		CameraYawSnapshot = CameraYaw;
 		CameraYawReturnRate = 0.0f;
 	}
 
-	if (XGameInput::AnyOfTheseButtonsAreReleased(XBOX_CONTROLLER::LEFT_BUMPER))
+	if (XGameInput::IsControllerActionReleased(InputActions::HOLD_LOOK))
 	{
 		CameraYawReturnRate = (CameraYawSnapshot - CameraYaw) / 2.0f;
 	}
+
+	Vector3D MovementForwardVector;
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraTurnStrength, DeltaFrame))
 	{
@@ -154,7 +161,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 		CameraYaw += TurnCalculation;
 
-		if (XGameInput::AnyOfTheseButtonsAreHolding(XBOX_CONTROLLER::LEFT_BUMPER))
+		if (XGameInput::IsControllerActionHeld(InputActions::HOLD_LOOK))
 		{
 			if (CameraYaw > CameraYawSnapshot)
 			{
@@ -172,25 +179,24 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 					CameraYaw = CameraYawSnapshot - 140.0f;
 				}
 			}
+
+			float RotationAsRadians = CameraYawSnapshot * ONE_DEGREE_AS_RADIANS;
+
+			MovementForwardVector.X = static_cast<float>(sin(RotationAsRadians));
+			MovementForwardVector.Z = static_cast<float>(cos(RotationAsRadians));
+		} 
+		else 
+		{
+
 		}
 
 		double RotationAsRadians = CameraYaw * ONE_DEGREE_AS_RADIANS;
-		double PitchAsRadians = (90 - fabs(CameraPitch)) * ONE_DEGREE_AS_RADIANS;
 
 		CameraForwardVector.X = static_cast<float>(sin(RotationAsRadians));
 		CameraForwardVector.Z = static_cast<float>(cos(RotationAsRadians));
+
 		CameraRightVector.X = CameraForwardVector.Z;
 		CameraRightVector.Z = -CameraForwardVector.X;
-		//CameraPosition.X -= CameraRightVector.X * DeltaFrame * 0.01;
-		//CameraPosition.Z -= CameraRightVector.Z * DeltaFrame * 0.01;
-
-
-		// Adjust 0.005 based on the pitch factor
-		//float AdjustedValue = 0.001f * fabs(CameraPitch) * CameraForwardVector.Z; // Reduce as pitch approaches -90 or 90
-
-
-		//CameraPosition.X -= CameraForwardVector.Z * AdjustedValue * DeltaFrame;
-		//CameraPosition.Z += CameraForwardVector.X * AdjustedValue * DeltaFrame;
 
 		CameraNeedsUpdate = true;
 	}
@@ -220,17 +226,34 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 		CameraNeedsUpdate = true;
 	}
 
+	float MPH_SPEED = 3.0f * 0.6667f;
+
 	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{
-		CameraPosition.X += CameraForwardVector.X * CameraForwardStrength * 0.075;// *10.6761565836;
-		CameraPosition.Z += CameraForwardVector.Z * CameraForwardStrength * 0.075;
+		if (XGameInput::IsControllerActionPressed(InputActions::SPRINT))
+		{
+			bIsSprinting = !bIsSprinting;
+		}
+
+		if (bIsSprinting)
+		{
+			MPH_SPEED *= 2.5f;
+		}
+
+		CameraPosition.X += CameraForwardVector.X * CameraForwardStrength * MPH_SPEED;
+		CameraPosition.Z += CameraForwardVector.Z * CameraForwardStrength * MPH_SPEED;
+
 		CameraNeedsUpdate = true;
+	} 
+	else 
+	{
+		bIsSprinting = false;
 	}
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraRightStrength, DeltaFrame))
 	{
-		CameraPosition.X += CameraRightVector.X * CameraRightStrength * 0.075;
-		CameraPosition.Z += CameraRightVector.Z * CameraRightStrength * 0.075;
+		CameraPosition.X += CameraRightVector.X * CameraRightStrength * MPH_SPEED;
+		CameraPosition.Z += CameraRightVector.Z * CameraRightStrength * MPH_SPEED;
 		CameraNeedsUpdate = true;
 	}
 
@@ -329,11 +352,11 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 	camera_matrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
 	camera_matrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
 
-	const float Height = 2.0f;
+	const float HeightInMeters = 1.67f;
 
-	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f * Height);
-	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f * Height);
-	const float CameraHeight = CameraPosition.Y + Height;
+	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f * HeightInMeters);
+	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f * HeightInMeters);
+	const float CameraHeight = CameraPosition.Y + HeightInMeters;
 
 	//Dot Product (Position, Right Vector).
 	camera_matrix._41 = -(CameraXOffset * camera_matrix._11 + CameraHeight * camera_matrix._21 + CameraZOffset * camera_matrix._31);
@@ -347,5 +370,5 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 
 void CameraEngine::GetDebugString(char* Out_Chars, int CharLength)
 {
-	sprintf_s(Out_Chars, CharLength, "FwdVec: [X: %f, Z: %f], Pos: [X: %f Y: %f Z: %f] Pitch: %f, Yaw: %f", CameraForwardVector.X, CameraForwardVector.Z, CameraPosition.X, CameraPosition.Y, CameraPosition.Z, CameraPitch, CameraYaw);
+	sprintf_s(Out_Chars, CharLength, "FwdVec: [X: %f, Z: %f], Pos: [X: %f Y: %f Z: %f] Pitch: %f, Yaw: %f, Meters/s: %f", CameraForwardVector.X, CameraForwardVector.Z, CameraPosition.X, CameraPosition.Y, CameraPosition.Z, CameraPitch, CameraYaw, DistanceTraveled);
 }

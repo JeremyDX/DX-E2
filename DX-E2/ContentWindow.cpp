@@ -15,7 +15,7 @@ ContentWindow::~ContentWindow() { }
 */
 void UpdateToWindow(void)
 {
-	if (XGameInput::AnyButtonPressed()/* || GameTime::ElapsedWindowFrameTicks() >= 600*/)
+	if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_A))
 	{
 		ContentLoader::PresentWindow(ContentLoader::m_index + 1);
 	}
@@ -25,10 +25,7 @@ void ProcessMenuButtons(void)
 {
 	ContentWindow& cw = ContentLoader::GetCurrentWindow();
 	cw.children();
-	if (XGameInput::AnyOfTheseButtonsArePressed(
-		XBOX_CONTROLLER::A_BUTTON | XBOX_CONTROLLER::X_BUTTON |
-		XBOX_CONTROLLER::MENU_BUTTON | XBOX_CONTROLLER::VIEW_BUTTON
-	))
+	if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_DPAD_RIGHT | XINPUT_GAMEPAD_X | XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_BACK))
 	{
 		switch (cw.menu_index)
 		{
@@ -59,10 +56,7 @@ void MenuUpdateDownUp(void)
 void MenuUpdateLeftRight(void)
 {
 	ContentWindow& cw = ContentLoader::GetCurrentWindow();
-	if (XGameInput::AllOfTheseButtonsArePressed
-	(
-		XBOX_CONTROLLER::D_PAD_LEFT
-	))
+	if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_DPAD_LEFT))
 	{
 		int oldPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		--cw.menu_index;
@@ -71,10 +65,7 @@ void MenuUpdateLeftRight(void)
 		int newPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		ContentLoader::SwapQuadsPosition(oldPosition, newPosition);
 	}
-	else if (XGameInput::AllOfTheseButtonsArePressed
-	(
-		XBOX_CONTROLLER::D_PAD_RIGHT
-	))
+	else if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_DPAD_RIGHT))
 	{
 		int oldPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		++cw.menu_index;

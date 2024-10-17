@@ -17,6 +17,7 @@ public:
 
 	static uint64_t GetAbsoluteFrameTicks();
 
+	static float GetDeltaElapsedTime();
 	static float GetFrameTickDelta();
 	static float GetFrameTickLimit();
 

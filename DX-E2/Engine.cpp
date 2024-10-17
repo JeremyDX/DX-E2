@@ -395,6 +395,38 @@ void Engine::Stop()
 	KEEP_LOOPING = false;
 }
 
+void Engine::Reset()
+{
+	IDXGIDevice* dxgiDevice = nullptr;
+	IDXGIAdapter* dxgiAdapter = nullptr;
+
+	// Get the DXGI device from the D3D11 device
+	if (SUCCEEDED(device->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxgiDevice))) {
+		// Get the adapter
+		if (SUCCEEDED(dxgiDevice->GetAdapter(&dxgiAdapter))) {
+			DXGI_ADAPTER_DESC desc;
+			dxgiAdapter->GetDesc(&desc);
+
+			// Output memory information
+			WCHAR buffer[256];
+			swprintf_s(buffer, sizeof(buffer) / sizeof(WCHAR),
+				L"Adapter Description: %s\n"
+				L"Dedicated Video Memory: %llu MB\n"
+				L"Dedicated System Memory: %llu MB\n"
+				L"Shared System Memory: %llu MB\n",
+				desc.Description,
+				desc.DedicatedVideoMemory / (1024 * 1024),
+				desc.DedicatedSystemMemory / (1024 * 1024),
+				desc.SharedSystemMemory / (1024 * 1024));
+			OutputDebugStringW(buffer);
+
+			// Clean up
+			dxgiAdapter->Release();
+		}
+		dxgiDevice->Release();
+	}
+}
+
 //Only To Be Called Once. Secondary Call Will Kill Execution and End Program.
 int Engine::StartGameLoop(void* vRawHWNDPtr)
 {
@@ -419,10 +451,11 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			}
 		}
 
-		XGameInput::LoadController();
+		//XGameInput::LoadController();
+		//XGameInput::UpdateInputFlags();
 
-		Update();
-		Render();
+		//Update();
+		//Render();
 
 		GameTime::Tick();
 
@@ -432,7 +465,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			char Message[464];
 			char CameraDebugString[460];
 			CameraEngine::GetDebugString(CameraDebugString, sizeof(CameraDebugString));
-			sprintf_s(Message, "FPS: %f (%.4f MS), ABS Ticks: %llu, DebugString: %s", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString);
+			sprintf_s(Message, "FPS: %f (%.5f MS), ABS Ticks: %llu, DebugString: %s", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString);
 			SetWindowTextA(hWnd, Message);
 		}
 	}

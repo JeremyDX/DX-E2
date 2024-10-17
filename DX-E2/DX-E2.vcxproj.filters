@@ -165,6 +165,9 @@
     <Image Include="Assets\Wood.png">
       <Filter>Assets</Filter>
     </Image>
+    <Image Include="Assets\894x894GridTexture.png">
+      <Filter>Assets</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl">

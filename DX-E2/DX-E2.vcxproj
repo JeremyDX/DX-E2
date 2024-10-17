@@ -63,6 +63,7 @@
     <Image Include="Assets\2.png" />
     <Image Include="Assets\2_FONT.PNG" />
     <Image Include="Assets\3_FONT.PNG" />
+    <Image Include="Assets\894x894GridTexture.png" />
     <Image Include="Assets\FloorTiles.PNG" />
     <Image Include="Assets\HM256.png" />
     <Image Include="Assets\Image_0.PNG" />

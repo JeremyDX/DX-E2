@@ -5,55 +5,63 @@
 
 #include <cstdint>
 
-struct XBOX_CONTROLLER
+enum XboxControllerButtonIndexes : uint8_t
 {
-	public:
+	D_PAD_UP,
+	D_PAD_DOWN,
+	D_PAD_LEFT,
+	D_PAD_RIGHT,
 
-		static const uint16_t
+	MENU_BUTTON,
+	VIEW_BUTTON,
 
-			D_PAD_UP			= 0x1,
-			D_PAD_DOWN			= 0x2,
-			D_PAD_LEFT			= 0x4,
-			D_PAD_RIGHT			= 0x8,
-			MENU_BUTTON			= 0x10,
-			VIEW_BUTTON			= 0x20,
-			LEFT_STICK_CLICK	= 0x40,
-			RIGHT_STICK_CLICK	= 0x80,
-			LEFT_BUMPER			= 0x100,
-			RIGHT_BUMPER		= 0x200,
-			A_BUTTON			= 0x1000,
-			B_BUTTON			= 0x2000,
-			X_BUTTON			= 0x4000,
-			Y_BUTTON			= 0x8000,
-			ALL_BUTTONS			= 0xF3FE;
+	LEFT_STICK_CLICK,
+	RIGHT_CLICK_STICK,
+
+	LEFT_BUMPER,
+	RIGHT_NUMPER,
+
+	PLACE_HOLDER_1,
+	PLACE_HOLDER_2,
+
+	A_BUTTON,
+	B_BUTTON,
+	X_BUTTON,
+	Y_BUTTON
+};
+
+enum class InputActions : uint8_t
+{
+	MOVE_FORWARD,
+	MOVE_BACKWARD,
+	MOVE_RIGHT,
+	MOVE_LEFT,
+	SPRINT,
+	HOLD_LOOK,
+	CROUCHING,
+	JUMPING,
+
+	MAX
 };
 
 class XGameInput
 {
 public:
 
+	static void InitializeDefaultConfigurations();
 	static bool LoadController();
 
-	static uint64_t GetTrackedHoldTime(uint16_t value = XBOX_CONTROLLER::ALL_BUTTONS);
-	static     void ResetHoldTracking();
+	static void UpdateInputFlags();
+	static void StoreRawInputStateChanges(RAWINPUT*& RawInput);
+
+	static uint16_t GetControllerButtonsPressed(uint16_t ButtonValues);
 
 	static int16_t GetLeftStickX();
 	static int16_t GetLeftStickY();
 	static int16_t GetRightStickX();
 	static int16_t GetRightStickY();
-	static XINPUT_GAMEPAD& GamePad();
-	static int16_t GetButtonBitSet();
 
-	static bool AllOfTheseButtonsArePressed(int value);
-	static bool AllOfTheseButtonsAreReleased(int value);
-	static bool AllOfTheseButtonsAreHolding(int value);
-
-	static uint16_t AnyOfTheseButtonsArePressed(int value = XBOX_CONTROLLER::ALL_BUTTONS);
-	static uint16_t AnyOfTheseButtonsAreReleased(int value = XBOX_CONTROLLER::ALL_BUTTONS);
-	static uint16_t AnyOfTheseButtonsAreHolding(int value = XBOX_CONTROLLER::ALL_BUTTONS);
-
-	static bool AnyButtonPressed();
-	static bool AnyButtonReleased();
-	static bool AnyButtonHeld();
+	static bool IsControllerActionHeld(InputActions Action);
+	static bool IsControllerActionPressed(InputActions Action);
+	static bool IsControllerActionReleased(InputActions Action);
 };
-
