@@ -20,7 +20,8 @@ constexpr const char* INPUT_ACTION_NAMES[static_cast<int>(InputActions::MAX)] =
 XINPUT_STATE CurrentGamepadState = { };
 
 //Storage for if a Mouse or Keyboard Button is Pressed or Released Currently on Keyboard.
-uint64_t KEYBOARD_BUTTONS_STATE[4] = {0};
+//Raw Input scancodes can range from 0 to 383.
+uint64_t KEYBOARD_BUTTONS_STATE[6] = {0};
 
 //Which actions are ocurring or can occur based on which Xbox Controller Buttons are pressed, released, or held down.
 uint64_t ACTIONS_HELD_CONTROLLER = 0;
@@ -36,8 +37,9 @@ uint64_t ACTIONS_RELEASED_PC_INPUTS = 0;
 uint16_t XBOX_BUTTONS_PRESSED = 0;
 uint16_t XBOX_BUTTONS_HELD = 0;
 
-uint8_t KeyboardConfigurations[64] = { 0 };
-uint8_t ControllerConfigurations[64] = { 0 };
+//Each Configuration Can store 2 Buttons Per Action, ScanKeys exceed 8bit values to 384, Controller will also offer Combo w/ DPad ability.
+uint32_t KeyboardConfigurations[64] = { 0 };
+uint32_t ControllerConfigurations[64] = { 0 };
 
 constexpr uint8_t UPDATE_FLAGS_BUTTONS_CHANGED = 0x1;
 constexpr uint8_t UPDATE_FLAGS_MOUSE_MOVED = 0x2;
@@ -112,15 +114,20 @@ bool XGameInput::LoadController()
 
 void XGameInput::UpdateInputFlags()
 {
-	if (UpdateFlags & UPDATE_FLAGS_BUTTONS_CHANGED)
-	{
-/*
-		wchar_t Buffer[64] = { 0 };
-		swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"Keyboard button action occurred\n");
-		OutputDebugString(Buffer);
-*/
+	//No Longer Used.
+}
 
-		UpdateFlags = 0;
+void GetScanCodeKeyName(wchar_t* KeyName, int Length, int ScanCode)
+{
+	switch (ScanCode)
+	{
+		case 83:
+			wcscpy_s(KeyName, Length, L"Num .");
+			break;
+
+		default:
+			GetKeyNameText(ScanCode << 16, KeyName, Length);
+			break;
 	}
 }
 
@@ -130,22 +137,33 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 	{
 		case RIM_TYPEKEYBOARD:
 		{
-			//Pause Key Occurred. NumLock also shows "Pause" fixed in a later step.
-			if (RawInput->data.keyboard.Flags & RI_KEY_E1)
+			const uint16_t CurrentFlag = RawInput->data.keyboard.Flags;
+
+			//Pause Key Occurred. NumLock also shows "Pause" due to Win10/Driver Issues likely. Fixed in a later step.
+			if (CurrentFlag & RI_KEY_E1)
 				return;
 
+			//THE PROPER WAY to resolve Extended Flags E0 Value.
 			uint32_t ScanCode = RawInput->data.keyboard.MakeCode;
-			ScanCode |= (RawInput->data.keyboard.Flags & RI_KEY_E0) << 7;
+
+			//Invalid Scan Code Somehow??
+			if (ScanCode == 0 || ScanCode > 383)
+				return;
+
+			ScanCode |= (CurrentFlag & RI_KEY_E0) << 7;
 
 			//We can eventually wrap this as a setting to enable so players can decide if they care about Num Lock usage.
+			//Disabling it would provide Num 0 and Num Delete which aren't available with this system due to Scan Limits of 82/83/338/339
+			//We Check for 255 because the real Pause uses 255 VKey and a few other keys as well.
 			if (RawInput->data.keyboard.VKey != 255)
 			{
 				int NumFlag = GetKeyState(VK_NUMLOCK) & 0x1;
 				switch (ScanCode)
 				{
-					case 69: //Numlock , Always requires +256
+					case 69: //Numlock , Fixes Num Lock which should be an Extended Key and isn't.
 						ScanCode |= 0x100;
 						break;
+
 					case 71: 
 					case 72: 
 					case 73: 
@@ -157,13 +175,12 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 					case 79:
 					case 80:
 					case 81:
-
-					case 83:
 						ScanCode |= NumFlag << 8;
 						break;
 
-					//[Numpad Period] the names won't be mapped correctly requires custom naming, but they'll have unique ids.
+					//[Numpad 0 + .] Resolved when Nums Lock is available. If On we do nothing if Off we OR 256.
 					case 82:
+					case 83:
 						ScanCode |= (NumFlag ^ 1) << 8;
 						break;
 
@@ -172,70 +189,60 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 				}
 			}
 
-			if (ScanCode != 0)
+			const uint8_t ArrayIndex = ScanCode >> 6;
+			const uint8_t KeyBitIndex = ScanCode & 0x3F;
+
+			//Last Read State.
+			const uint64_t LastStorageReadState = KEYBOARD_BUTTONS_STATE[ArrayIndex];
+
+			//Current State of Key. 0x1 for Released and 0x0 for Pressed.
+			const uint64_t KeyReleasedFlag = CurrentFlag & 0x1;
+
+			//Get an updated storage value.
+			uint64_t CurrentStorageReadState = LastStorageReadState;
+			CurrentStorageReadState |= (1ULL << KeyBitIndex);
+			CurrentStorageReadState ^= (KeyReleasedFlag << KeyBitIndex);
+
+			//Update Action Press/Hold Storage if Key Change occurred.
+			if (LastStorageReadState != CurrentStorageReadState)
 			{
-				wchar_t KeyName[32] = {0};
+				KEYBOARD_BUTTONS_STATE[ArrayIndex] = CurrentStorageReadState;
 
-				// Define the lambda function which modifies KeyName directly
-				auto my_lambda = [&KeyName, ScanCode]() {
-					switch (ScanCode) 
-					{
-					default:
-						if(!GetKeyNameText(ScanCode << 16, KeyName, sizeof(KeyName)))
-						{
-							KeyName[0] = NULL;
-						}
-						break;
-					}
-				};
+				const uint64_t KeyPressedFlag = KeyReleasedFlag ^ 1;
 
-				my_lambda();
+				wchar_t KeyName[16] = {0};
+				GetScanCodeKeyName(KeyName, sizeof(KeyName) / sizeof(wchar_t), ScanCode);
+
+				//Builds Current Action States.
+				uint64_t ACTION_PRESSED_FLAGS = 0x0;
+				uint64_t ACTION_HELD_FLAGS = 0x0;
+				uint64_t ACTION_RELEASED_FLAGS = 0x0;
+
+				for (int CurIndex = 0; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
+				{
+					const uint8_t ActionBitIndex = KeyboardConfigurations[CurIndex];
+		
+					ACTION_PRESSED_FLAGS |= KeyPressedFlag << ActionBitIndex;
+					ACTION_RELEASED_FLAGS |= KeyReleasedFlag << ActionBitIndex;
+				}
+
+				//Holds match press release, but holds are only adjusted here and when a release occurs.
+				ACTION_HELD_FLAGS = ACTION_PRESSED_FLAGS;
+
+				ACTIONS_HELD_PC_INPUTS = ACTION_PRESSED_FLAGS;
+				ACTIONS_PRESSED_PC_INPUTS = ACTION_PRESSED_FLAGS;
+				ACTIONS_RELEASED_PC_INPUTS = ACTION_RELEASED_FLAGS;
 
 				if (KeyName[0] != NULL)
 				{
-					if (RawInput->data.keyboard.Flags & 0x1)
-					{
-						wchar_t Buffer[256] = { 0 };
-						swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"ScanCode: %d, Name: %s, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, KeyName, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
-						OutputDebugString(Buffer);
-					}
-				} 
-				else 
-				{					wchar_t Buffer[256] = { 0 };
-					swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"[Type A] - ScanCode: %d, Name: Unknown, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
+					wchar_t Buffer[256] = { 0 };
+					swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"ScanCode: %d, Name: %s, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, KeyName, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
 					OutputDebugString(Buffer);
 				}
-				//const uint8_t ArrayIndex = (VKeyID & 0x7F) >> 6;
-				//const uint8_t KeyBitIndex = (VKeyID & 0x3F);
-				//const uint64_t KeyBitMask = (1ULL << KeyBitIndex);
-
-				//const uint64_t PreviousKeyboardState = KEYBOARD_BUTTONS_STATE[ArrayIndex];
-
-				//uint64_t CurrentKeyboardState = PreviousKeyboardState;
-
-				//CurrentKeyboardState |= KeyBitMask;
-				//CurrentKeyboardState ^= (static_cast<uint64_t>(RawInput->data.keyboard.Flags) << KeyBitIndex);
-
-				//uint64_t IsHoldingKeyDown = PreviousKeyboardState & CurrentKeyboardState;
-
-				//KEYBOARD_BUTTONS_STATE[ArrayIndex] = CurrentKeyboardState;
-				//uint64_t InitialPress = CurrentKeyboardState ^ IsHoldingKeyDown;
-				//uint64_t ReleasedOccurance = PreviousKeyboardState ^ IsHoldingKeyDown;
-
-				//CurrentKeyboardState |= ((CurrentKeyboardState & KeyBitMask) << 0x20);
-				//InitialPress |= ((InitialPress & KeyBitMask) << 0x20);
-				//ReleasedOccurance |= ((ReleasedOccurance & KeyBitMask) << 0x20);
-
-				//for (int CurIndex = 0; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
-				//{
-				//	const uint8_t ActionBitsIndex = KeyboardConfigurations[CurIndex];
-				//}
-			}
-			else
+			} 
+			else 
 			{
-				wchar_t Buffer[256] = { 0 };
-				swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"[Type B] - ScanCode: %d, Name: Unknown, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
-				OutputDebugString(Buffer);
+				OutputDebugString(L"Key Held\n");
 			}
 			break;
 		}
