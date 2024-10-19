@@ -95,11 +95,12 @@ LRESULT CALLBACK WindowProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _
             UINT dwSize = sizeof(RAWINPUT);
             static BYTE lpb[sizeof(RAWINPUT)];
 
-            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+            if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)))
+            {
+                RAWINPUT* raw = (RAWINPUT*)lpb;
+                XGameInput::StoreRawInputStateChanges(raw);
+            }
 
-            RAWINPUT* raw = (RAWINPUT*)lpb;
-
-            XGameInput::StoreRawInputStateChanges(raw);
             break;
         }
 

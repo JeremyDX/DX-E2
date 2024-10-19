@@ -20,8 +20,7 @@ constexpr const char* INPUT_ACTION_NAMES[static_cast<int>(InputActions::MAX)] =
 XINPUT_STATE CurrentGamepadState = { };
 
 //Storage for if a Mouse or Keyboard Button is Pressed or Released Currently on Keyboard.
-uint64_t KEYBOARD_BUTTONS_PRESSED[4];
-uint64_t KEYBOARD_BUTTONS_HELD[4];
+uint64_t KEYBOARD_BUTTONS_STATE[4] = {0};
 
 //Which actions are ocurring or can occur based on which Xbox Controller Buttons are pressed, released, or held down.
 uint64_t ACTIONS_HELD_CONTROLLER = 0;
@@ -37,7 +36,7 @@ uint64_t ACTIONS_RELEASED_PC_INPUTS = 0;
 uint16_t XBOX_BUTTONS_PRESSED = 0;
 uint16_t XBOX_BUTTONS_HELD = 0;
 
-uint16_t KeyboardConfiguration[64] = { 0 };
+uint8_t KeyboardConfigurations[64] = { 0 };
 uint8_t ControllerConfigurations[64] = { 0 };
 
 constexpr uint8_t UPDATE_FLAGS_BUTTONS_CHANGED = 0x1;
@@ -49,15 +48,15 @@ uint8_t UpdateFlags;
 
 void XGameInput::InitializeDefaultConfigurations()
 {
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::MOVE_FORWARD)] = 'w';
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::MOVE_LEFT)] = 'a';
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::MOVE_BACKWARD)] = 's';
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::MOVE_RIGHT)] = 'd';
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_FORWARD)] = 'W';
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_LEFT)] = 'A';
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_BACKWARD)] = 'S';
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_RIGHT)] = 'D';
 
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::SPRINT)] = static_cast<char>(SHIFT_PRESSED);
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = 'g';
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::CROUCHING)] = static_cast<char>(LEFT_CTRL_PRESSED);
-	KeyboardConfiguration[static_cast<uint8_t>(InputActions::JUMPING)] = ' ';
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = VK_SHIFT;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = 'G';
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::CROUCHING)] = VK_LCONTROL;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::JUMPING)] = VK_SPACE;
 
 	ControllerConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = static_cast<uint8_t>(XboxControllerButtonIndexes::LEFT_STICK_CLICK);
 	ControllerConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = static_cast<uint8_t>(XboxControllerButtonIndexes::LEFT_BUMPER);
@@ -81,12 +80,12 @@ bool XGameInput::LoadController()
 			//swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"Button Value: %d\n", Current);
 			//OutputDebugString(Buffer);
 
-			const uint16_t HeldButtons = LastGamepadState & Current;
+			const uint16_t CurrentHeldButtons = LastGamepadState & Current;
 
-			XBOX_BUTTONS_HELD = HeldButtons;
-			XBOX_BUTTONS_PRESSED = Current ^ HeldButtons;
+			XBOX_BUTTONS_HELD = CurrentHeldButtons;
+			XBOX_BUTTONS_PRESSED = Current ^ CurrentHeldButtons;
 
-			const uint16_t XBOX_BUTTONS_RELEASED = LastGamepadState ^ HeldButtons;
+			const uint16_t XBOX_BUTTONS_RELEASED = LastGamepadState ^ CurrentHeldButtons;
 
 			uint16_t HELD = 0x0;
 			uint16_t PRESSED = 0x0;
@@ -131,32 +130,112 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 	{
 		case RIM_TYPEKEYBOARD:
 		{
-			const uint8_t VKeyID = static_cast<uint8_t>(RawInput->data.keyboard.VKey);
+			//Pause Key Occurred. NumLock also shows "Pause" fixed in a later step.
+			if (RawInput->data.keyboard.Flags & RI_KEY_E1)
+				return;
 
-			if (VKeyID != 0)
+			uint32_t ScanCode = RawInput->data.keyboard.MakeCode;
+			ScanCode |= (RawInput->data.keyboard.Flags & RI_KEY_E0) << 7;
+
+			//We can eventually wrap this as a setting to enable so players can decide if they care about Num Lock usage.
+			if (RawInput->data.keyboard.VKey != 255)
 			{
-				constexpr uint16_t j1 = 260;
-				constexpr uint8_t j2 = j1 & 0xFF;
-				constexpr uint8_t j3 = static_cast<uint8_t>(j1);
+				int NumFlag = GetKeyState(VK_NUMLOCK) & 0x1;
+				switch (ScanCode)
+				{
+					case 69: //Numlock , Always requires +256
+						ScanCode |= 0x100;
+						break;
+					case 71: 
+					case 72: 
+					case 73: 
 
+					case 75:
+					case 76: 
+					case 77:
 
-				const uint8_t ArrayIndex = VKeyID >> 6;
-				const uint8_t KeyBitIndex = VKeyID & 0x3F;
+					case 79:
+					case 80:
+					case 81:
 
-				const uint64_t PreviousPressedKeysChunk = KEYBOARD_BUTTONS_PRESSED[ArrayIndex];
-				const uint64_t PreviousHeldKeysChunk = KEYBOARD_BUTTONS_HELD[ArrayIndex];
+					case 83:
+						ScanCode |= NumFlag << 8;
+						break;
 
-				//INPUT_BUTTON_STATES[ArrayIndex] |= (1ULL << KeyBitIndex);
-				//INPUT_BUTTON_STATES[ArrayIndex] ^= (static_cast<uint64_t>(RawInput->data.keyboard.Flags) << KeyBitIndex);
+					//[Numpad Period] the names won't be mapped correctly requires custom naming, but they'll have unique ids.
+					case 82:
+						ScanCode |= (NumFlag ^ 1) << 8;
+						break;
 
-				//wchar_t Buffer[64] = { 0 };
-				//swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"Keyboard States [Hold=%s,Press=%s,Release=%s]: \n", KeyIsHeldAction ? L"TRUE" : L"FALSE", KeyIsPressedAction ? L"TRUE" : L"FALSE", KeyIsReleasedAction ? L"TRUE" : L"FALSE");
-				//OutputDebugString(Buffer);
+					default:
+						break;	
+				}
+			}
 
-				//if (CurrentKeyStatePressed != KeyIsHeldAction)
+			if (ScanCode != 0)
+			{
+				wchar_t KeyName[32] = {0};
+
+				// Define the lambda function which modifies KeyName directly
+				auto my_lambda = [&KeyName, ScanCode]() {
+					switch (ScanCode) 
+					{
+					default:
+						if(!GetKeyNameText(ScanCode << 16, KeyName, sizeof(KeyName)))
+						{
+							KeyName[0] = NULL;
+						}
+						break;
+					}
+				};
+
+				my_lambda();
+
+				if (KeyName[0] != NULL)
+				{
+					if (RawInput->data.keyboard.Flags & 0x1)
+					{
+						wchar_t Buffer[256] = { 0 };
+						swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"ScanCode: %d, Name: %s, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, KeyName, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
+						OutputDebugString(Buffer);
+					}
+				} 
+				else 
+				{					wchar_t Buffer[256] = { 0 };
+					swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"[Type A] - ScanCode: %d, Name: Unknown, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
+					OutputDebugString(Buffer);
+				}
+				//const uint8_t ArrayIndex = (VKeyID & 0x7F) >> 6;
+				//const uint8_t KeyBitIndex = (VKeyID & 0x3F);
+				//const uint64_t KeyBitMask = (1ULL << KeyBitIndex);
+
+				//const uint64_t PreviousKeyboardState = KEYBOARD_BUTTONS_STATE[ArrayIndex];
+
+				//uint64_t CurrentKeyboardState = PreviousKeyboardState;
+
+				//CurrentKeyboardState |= KeyBitMask;
+				//CurrentKeyboardState ^= (static_cast<uint64_t>(RawInput->data.keyboard.Flags) << KeyBitIndex);
+
+				//uint64_t IsHoldingKeyDown = PreviousKeyboardState & CurrentKeyboardState;
+
+				//KEYBOARD_BUTTONS_STATE[ArrayIndex] = CurrentKeyboardState;
+				//uint64_t InitialPress = CurrentKeyboardState ^ IsHoldingKeyDown;
+				//uint64_t ReleasedOccurance = PreviousKeyboardState ^ IsHoldingKeyDown;
+
+				//CurrentKeyboardState |= ((CurrentKeyboardState & KeyBitMask) << 0x20);
+				//InitialPress |= ((InitialPress & KeyBitMask) << 0x20);
+				//ReleasedOccurance |= ((ReleasedOccurance & KeyBitMask) << 0x20);
+
+				//for (int CurIndex = 0; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
 				//{
-				//	UpdateFlags |= UPDATE_FLAGS_BUTTONS_CHANGED;
+				//	const uint8_t ActionBitsIndex = KeyboardConfigurations[CurIndex];
 				//}
+			}
+			else
+			{
+				wchar_t Buffer[256] = { 0 };
+				swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"[Type B] - ScanCode: %d, Name: Unknown, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
+				OutputDebugString(Buffer);
 			}
 			break;
 		}
