@@ -437,6 +437,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 	MSG Msg;
 
 	GameTime::Initialize(); //It's SAFE! to PresentWindow before we begin ticking. It'll initalize as Frame Index 0.
+	XGameInput::InitializeDefaultConfigurations();
 
 	while (KEEP_LOOPING)
 	{
@@ -451,11 +452,12 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			}
 		}
 
-		//XGameInput::LoadController();
-		//XGameInput::UpdateInputFlags();
+		XGameInput::LoadController();
 
-		//Update();
-		//Render();
+		XGameInput::GameInputPostProcessing();
+
+		Update();
+		Render();
 
 		GameTime::Tick();
 
@@ -465,7 +467,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			char Message[464];
 			char CameraDebugString[460];
 			CameraEngine::GetDebugString(CameraDebugString, sizeof(CameraDebugString));
-			sprintf_s(Message, "FPS: %f (%.5f MS), ABS Ticks: %llu, DebugString: %s", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString);
+			sprintf_s(Message, "FPS: %f (%.6f MS), ABS Ticks: %llu, DebugString: %s, MouseDebug: %llu", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString, XGameInput::MouseCalls);
 			SetWindowTextA(hWnd, Message);
 		}
 	}

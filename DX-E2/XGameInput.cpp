@@ -29,9 +29,11 @@ uint64_t ACTIONS_PRESSED_CONTROLLER = 0;
 uint64_t ACTIONS_RELEASED_CONTROLLER = 0;
 
 //Which actions are ocurring or can occur based on which Mouse or Keyboard Buttons are pressed, released, or held down.
-uint64_t ACTIONS_HELD_PC_INPUTS = 0;
-uint64_t ACTIONS_PRESSED_PC_INPUTS = 0;
-uint64_t ACTIONS_RELEASED_PC_INPUTS = 0;
+uint64_t GameActionsCurrentlyHeld = 0;
+uint64_t GameActionsInitiallyPressed = 0;
+uint64_t GameActionsFinallyReleased = 0;
+
+uint64_t XGameInput::MouseCalls = 0;
 
 //Storage for if an Button is Pressed or Released on Xbox Controller
 uint16_t XBOX_BUTTONS_PRESSED = 0;
@@ -48,17 +50,55 @@ constexpr uint8_t UPDATE_FLAGS_TEXTBOX_TYPING = 0x8;
 
 uint8_t UpdateFlags;
 
-void XGameInput::InitializeDefaultConfigurations()
+constexpr int GetScanCodeIDCompileTime(const char VKeyId)
 {
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_FORWARD)] = 'W';
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_LEFT)] = 'A';
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_BACKWARD)] = 'S';
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_RIGHT)] = 'D';
+	switch (VKeyId)
+	{
+		case 'W':
+			return 17;
+		case 'A':
+			return 30;
+		case 'S':
+			return 31;
+		case 'D':
+			return 32;
 
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = VK_SHIFT;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = 'G';
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::CROUCHING)] = VK_LCONTROL;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::JUMPING)] = VK_SPACE;
+		case 'G':
+			return 34;
+
+		case VK_CONTROL:
+			return 29;
+		case VK_SHIFT:
+			return 42;
+		case VK_SPACE:
+			return 57;
+
+		default:
+			return 0;
+	}
+}
+
+void XGameInput::InitializeDefaultConfigurations()
+{ 
+	constexpr int ScanW = GetScanCodeIDCompileTime('W');
+	constexpr int ScanA = GetScanCodeIDCompileTime('A');
+	constexpr int ScanS = GetScanCodeIDCompileTime('S');
+	constexpr int ScanD = GetScanCodeIDCompileTime('D');
+	constexpr int ScanG = GetScanCodeIDCompileTime('G');
+		
+	constexpr int ScanShift = GetScanCodeIDCompileTime(VK_SHIFT);
+	constexpr int ScanControl = GetScanCodeIDCompileTime(VK_CONTROL);
+	constexpr int ScanSpace = GetScanCodeIDCompileTime(VK_SPACE);
+
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_FORWARD)] = ScanW;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_LEFT)] = ScanA;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_BACKWARD)] = ScanS;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_RIGHT)] = ScanD;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = ScanG;
+
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = ScanShift;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::CROUCHING)] = ScanControl;
+	KeyboardConfigurations[static_cast<uint8_t>(InputActions::JUMPING)] = ScanSpace;
 
 	ControllerConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = static_cast<uint8_t>(XboxControllerButtonIndexes::LEFT_STICK_CLICK);
 	ControllerConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = static_cast<uint8_t>(XboxControllerButtonIndexes::LEFT_BUMPER);
@@ -112,9 +152,10 @@ bool XGameInput::LoadController()
 	return false;
 }
 
-void XGameInput::UpdateInputFlags()
+void XGameInput::GameInputPostProcessing()
 {
-	//No Longer Used.
+	GameActionsFinallyReleased = 0;
+	ACTIONS_RELEASED_CONTROLLER = 0;
 }
 
 void GetScanCodeKeyName(wchar_t* KeyName, int Length, int ScanCode)
@@ -214,24 +255,27 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 				GetScanCodeKeyName(KeyName, sizeof(KeyName) / sizeof(wchar_t), ScanCode);
 
 				//Builds Current Action States.
-				uint64_t ACTION_PRESSED_FLAGS = 0x0;
-				uint64_t ACTION_HELD_FLAGS = 0x0;
-				uint64_t ACTION_RELEASED_FLAGS = 0x0;
+				//uint64_t ACTION_PRESSED_FLAGS = 0x0;
+				//uint64_t ACTION_HELD_FLAGS = 0x0;
+				//uint64_t ACTION_RELEASED_FLAGS = 0x0;
 
 				for (int CurIndex = 0; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
 				{
-					const uint8_t ActionBitIndex = KeyboardConfigurations[CurIndex];
-		
-					ACTION_PRESSED_FLAGS |= KeyPressedFlag << ActionBitIndex;
-					ACTION_RELEASED_FLAGS |= KeyReleasedFlag << ActionBitIndex;
+					if (KeyboardConfigurations[CurIndex] == ScanCode)
+					{
+						const uint64_t KeyPressedMask = KeyPressedFlag << CurIndex;
+						const uint64_t KeyReleasedMask = KeyReleasedFlag << CurIndex;
+
+						GameActionsCurrentlyHeld &= ~KeyReleasedMask;
+						GameActionsCurrentlyHeld |= KeyPressedMask;
+
+						GameActionsInitiallyPressed = GameActionsCurrentlyHeld;
+
+						GameActionsFinallyReleased &= ~KeyPressedMask;
+						GameActionsFinallyReleased |= KeyReleasedMask;
+						break;
+					}
 				}
-
-				//Holds match press release, but holds are only adjusted here and when a release occurs.
-				ACTION_HELD_FLAGS = ACTION_PRESSED_FLAGS;
-
-				ACTIONS_HELD_PC_INPUTS = ACTION_PRESSED_FLAGS;
-				ACTIONS_PRESSED_PC_INPUTS = ACTION_PRESSED_FLAGS;
-				ACTIONS_RELEASED_PC_INPUTS = ACTION_RELEASED_FLAGS;
 
 				if (KeyName[0] != NULL)
 				{
@@ -249,6 +293,8 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 		
 		case RIM_TYPEMOUSE:
 		{
+			MouseCalls++;
+
 			const uint32_t RawInputButtonState = RawInput->data.mouse.usButtonFlags;
 
 			if (RawInputButtonState != 0)
@@ -297,6 +343,7 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 				//OutputDebugStringW(buffer);
 			}
 			break;
+
 		}
 	}
 }
@@ -326,17 +373,17 @@ int16_t XGameInput::GetRightStickY()
 	return CurrentGamepadState.Gamepad.sThumbRY;
 }
 
-bool XGameInput::IsControllerActionHeld(InputActions Action)
+bool XGameInput::IsActionInitiallyPressed(InputActions Action)
 {
-	return (1ULL << static_cast<uint8_t>(Action)) & ACTIONS_HELD_CONTROLLER;
+	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsInitiallyPressed;
 }
 
-bool XGameInput::IsControllerActionPressed(InputActions Action)
+bool XGameInput::IsActionCurrentlyHeld(InputActions Action)
 {
-	return (1ULL << static_cast<uint8_t>(Action)) & ACTIONS_PRESSED_CONTROLLER;
+	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsCurrentlyHeld;
 }
 
-bool XGameInput::IsControllerActionReleased(InputActions Action)
+bool XGameInput::IsActionFinallyReleased(InputActions Action)
 {
-	return (1ULL << static_cast<uint8_t>(Action)) & ACTIONS_RELEASED_CONTROLLER;
+	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsFinallyReleased;
 }

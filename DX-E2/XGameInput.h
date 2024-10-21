@@ -51,8 +51,10 @@ public:
 	static void InitializeDefaultConfigurations();
 	static bool LoadController();
 
-	static void UpdateInputFlags();
-	static void StoreRawInputStateChanges(RAWINPUT*& RawInput);
+	static void GameInputPostProcessing();
+	static void StoreRawInputStateChanges(RAWINPUT* &RawInput);
+
+	static uint64_t MouseCalls;
 
 	static uint16_t GetControllerButtonsPressed(uint16_t ButtonValues);
 
@@ -64,4 +66,8 @@ public:
 	static bool IsControllerActionHeld(InputActions Action);
 	static bool IsControllerActionPressed(InputActions Action);
 	static bool IsControllerActionReleased(InputActions Action);
+
+	static bool IsPCInputActionHeld(InputActions Action);
+	static bool IsPCInputActionPressed(InputActions Action);
+	static bool IsPCInputActionReleased(InputActions Action);
 };
