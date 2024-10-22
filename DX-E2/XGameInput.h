@@ -32,42 +32,46 @@ enum XboxControllerButtonIndexes : uint8_t
 
 enum class InputActions : uint8_t
 {
+	//This specific Actions although tied to WASD for instance are not regularly used they are compared against controlled Joysticks.
 	MOVE_FORWARD,
 	MOVE_BACKWARD,
 	MOVE_RIGHT,
 	MOVE_LEFT,
+
+	//From here onward these have 1:1 mapping with Controller, Keyboard, Mouse buttons.
 	SPRINT,
 	HOLD_LOOK,
 	CROUCHING,
 	JUMPING,
 
+	//Actions that hold their Press/Release actions.
+	INTERFACE_ACCEPT,
+	INTERFACE_BACK,
+
+	//End Of Actions
 	MAX
 };
 
 class XGameInput
 {
-public:
+	public:
 
-	static void InitializeDefaultConfigurations();
-	static bool LoadController();
+		static void InitializeDefaultConfigurations();
+		static bool LoadController();
 
-	static void GameInputPostProcessing();
-	static void StoreRawInputStateChanges(RAWINPUT* &RawInput);
+		static void GameInputPostProcessing();
+		static void StoreRawInputStateChanges(RAWINPUT* &RawInput);
 
-	static uint64_t MouseCalls;
+		static int16_t GetLeftStickX();
+		static int16_t GetLeftStickY();
+		static int16_t GetRightStickX();
+		static int16_t GetRightStickY();
 
-	static uint16_t GetControllerButtonsPressed(uint16_t ButtonValues);
+		static bool ActionHasStarted(InputActions Action);
+		static bool ActionIsCurrentlyActive(InputActions Action);
+		static bool ActionHasEnded(InputActions Action);
 
-	static int16_t GetLeftStickX();
-	static int16_t GetLeftStickY();
-	static int16_t GetRightStickX();
-	static int16_t GetRightStickY();
+	public:
 
-	static bool IsControllerActionHeld(InputActions Action);
-	static bool IsControllerActionPressed(InputActions Action);
-	static bool IsControllerActionReleased(InputActions Action);
-
-	static bool IsPCInputActionHeld(InputActions Action);
-	static bool IsPCInputActionPressed(InputActions Action);
-	static bool IsPCInputActionReleased(InputActions Action);
+		static uint64_t MouseCalls;
 };

@@ -23,32 +23,16 @@ XINPUT_STATE CurrentGamepadState = { };
 //Raw Input scancodes can range from 0 to 383.
 uint64_t KEYBOARD_BUTTONS_STATE[6] = {0};
 
-//Which actions are ocurring or can occur based on which Xbox Controller Buttons are pressed, released, or held down.
-uint64_t ACTIONS_HELD_CONTROLLER = 0;
-uint64_t ACTIONS_PRESSED_CONTROLLER = 0;
-uint64_t ACTIONS_RELEASED_CONTROLLER = 0;
-
-//Which actions are ocurring or can occur based on which Mouse or Keyboard Buttons are pressed, released, or held down.
-uint64_t GameActionsCurrentlyHeld = 0;
-uint64_t GameActionsInitiallyPressed = 0;
-uint64_t GameActionsFinallyReleased = 0;
-
-uint64_t XGameInput::MouseCalls = 0;
-
-//Storage for if an Button is Pressed or Released on Xbox Controller
-uint16_t XBOX_BUTTONS_PRESSED = 0;
-uint16_t XBOX_BUTTONS_HELD = 0;
-
 //Each Configuration Can store 2 Buttons Per Action, ScanKeys exceed 8bit values to 384, Controller will also offer Combo w/ DPad ability.
 uint32_t KeyboardConfigurations[64] = { 0 };
 uint32_t ControllerConfigurations[64] = { 0 };
 
-constexpr uint8_t UPDATE_FLAGS_BUTTONS_CHANGED = 0x1;
-constexpr uint8_t UPDATE_FLAGS_MOUSE_MOVED = 0x2;
-constexpr uint8_t UPDATE_FLAGS_MOUSE_WHEEL = 0x4;
-constexpr uint8_t UPDATE_FLAGS_TEXTBOX_TYPING = 0x8;
+uint64_t GameActionsInitiatedStorage = 0;
+uint64_t GameActionsAreActiveStorage = 0;
+uint64_t GameActionsHaveEndedStorage = 0;
 
-uint8_t UpdateFlags;
+
+uint64_t XGameInput::MouseCalls = 0;
 
 constexpr int GetScanCodeIDCompileTime(const char VKeyId)
 {
@@ -154,8 +138,9 @@ bool XGameInput::LoadController()
 
 void XGameInput::GameInputPostProcessing()
 {
-	GameActionsFinallyReleased = 0;
-	ACTIONS_RELEASED_CONTROLLER = 0;
+	//Clear Action Caches for Start/Stop only CurrentlyActive remains.
+	GameActionsInitiatedStorage = 0;
+	GameActionsHaveEndedStorage = 0;
 }
 
 void GetScanCodeKeyName(wchar_t* KeyName, int Length, int ScanCode)
@@ -184,14 +169,20 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 			if (CurrentFlag & RI_KEY_E1)
 				return;
 
-			//THE PROPER WAY to resolve Extended Flags E0 Value.
+			//Obtain the Current/Base Scan Code from the Keyboards MakeCode.
 			uint32_t ScanCode = RawInput->data.keyboard.MakeCode;
 
 			//Invalid Scan Code Somehow??
 			if (ScanCode == 0 || ScanCode > 383)
 				return;
 
+			//This is the correct way to handle the extended #EO Extension. Add 256 when extended. It's that simple.
 			ScanCode |= (CurrentFlag & RI_KEY_E0) << 7;
+
+			if ((CurrentFlag & RI_KEY_E0) == 0x2)
+			{
+				ScanCode |= 0x100;
+			}
 
 			//We can eventually wrap this as a setting to enable so players can decide if they care about Num Lock usage.
 			//Disabling it would provide Num 0 and Num Delete which aren't available with this system due to Scan Limits of 82/83/338/339
@@ -254,25 +245,54 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 				wchar_t KeyName[16] = {0};
 				GetScanCodeKeyName(KeyName, sizeof(KeyName) / sizeof(wchar_t), ScanCode);
 
-				//Builds Current Action States.
-				//uint64_t ACTION_PRESSED_FLAGS = 0x0;
-				//uint64_t ACTION_HELD_FLAGS = 0x0;
-				//uint64_t ACTION_RELEASED_FLAGS = 0x0;
-
+				//Process Loops all Actions, Creates a Mask
 				for (int CurIndex = 0; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
 				{
 					if (KeyboardConfigurations[CurIndex] == ScanCode)
 					{
+
+						bool Toggle = true;
+
 						const uint64_t KeyPressedMask = KeyPressedFlag << CurIndex;
+
+						//Toggle Action Storage Via (Press) Activate + Stays Active, (Press) Ends Activity.
+						if (Toggle)
+						{
+							uint64_t StartMaskValue = GameActionsInitiatedStorage & KeyPressedMask;
+
+							//If Release occurs we'll always flip ZERO so no changes will occur.
+
+							//This is to ensure if double press,triple,or more occurred b4 next update, value is set to ZERO.
+							//If regular updates occurred it should flow with 0,1,0,1,0,1,etc.. to generate a stop event.
+							uint64_t ActiveMaskValue = GameActionsAreActiveStorage & KeyPressedMask;
+							GameActionsHaveEndedStorage ^= KeyPressedMask & (ActiveMaskValue ^ StartMaskValue);
+
+							//Flip the active state.
+							GameActionsAreActiveStorage ^= KeyPressedMask;
+
+							//This is to ensure if double press,triple,or more occurred b4 next update, value is set to ZERO.
+							//If regular updates occurred it should flow with 1,0,1,0,1,0,etc.. to generate a start event.
+							ActiveMaskValue = GameActionsAreActiveStorage & KeyPressedMask;
+							StartMaskValue = GameActionsInitiatedStorage & KeyPressedMask;
+							GameActionsInitiatedStorage ^= KeyPressedMask & (ActiveMaskValue ^ StartMaskValue);
+							break;
+						} 
+
 						const uint64_t KeyReleasedMask = KeyReleasedFlag << CurIndex;
 
-						GameActionsCurrentlyHeld &= ~KeyReleasedMask;
-						GameActionsCurrentlyHeld |= KeyPressedMask;
+						//Hold Action Storage Via (Press) Activates + Stays Active, (Release) Ends Activity.
 
-						GameActionsInitiallyPressed = GameActionsCurrentlyHeld;
+						GameActionsInitiatedStorage &= ~KeyReleasedMask;
+						GameActionsInitiatedStorage |= KeyPressedMask;
 
-						GameActionsFinallyReleased &= ~KeyPressedMask;
-						GameActionsFinallyReleased |= KeyReleasedMask;
+						//We do same actions to the Active Cache so we don't damage the other statuses. 
+						GameActionsAreActiveStorage &= ~KeyReleasedMask;
+						GameActionsAreActiveStorage |= KeyPressedMask;
+
+						//Stop becomes the inverse of start unless an update hasn't occured then it's zero.
+						GameActionsHaveEndedStorage &= ~KeyPressedMask;
+						GameActionsHaveEndedStorage |= KeyReleasedMask;
+
 						break;
 					}
 				}
@@ -348,11 +368,6 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 	}
 }
 
-uint16_t XGameInput::GetControllerButtonsPressed(uint16_t ButtonValues)
-{
-	return XBOX_BUTTONS_PRESSED & ButtonValues;
-}
-
 int16_t XGameInput::GetLeftStickX()
 {
 	return CurrentGamepadState.Gamepad.sThumbLX;
@@ -373,17 +388,17 @@ int16_t XGameInput::GetRightStickY()
 	return CurrentGamepadState.Gamepad.sThumbRY;
 }
 
-bool XGameInput::IsActionInitiallyPressed(InputActions Action)
+bool XGameInput::ActionHasStarted(InputActions Action)
 {
-	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsInitiallyPressed;
+	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsInitiatedStorage;
 }
 
-bool XGameInput::IsActionCurrentlyHeld(InputActions Action)
+bool XGameInput::ActionIsCurrentlyActive(InputActions Action)
 {
-	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsCurrentlyHeld;
+	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsAreActiveStorage;
 }
 
-bool XGameInput::IsActionFinallyReleased(InputActions Action)
+bool XGameInput::ActionHasEnded(InputActions Action)
 {
-	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsFinallyReleased;
+	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsHaveEndedStorage;
 }
