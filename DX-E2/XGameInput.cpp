@@ -5,19 +5,7 @@
 #include <cstdint>
 #include <stdio.h>
 
-constexpr const char* INPUT_ACTION_NAMES[static_cast<int>(InputActions::MAX)] =
-{
-	"Move Forward",  // 0
-	"Move Backward", // 1
-	"Move Right",    // 2
-	"Move Left",     // 3
-	"Sprint",        // 4
-	"Hold Look",     // 5
-	"Crouch",        // 6
-	"Jumping",       // 7
-};
-
-XINPUT_STATE CurrentGamepadState = { };
+XINPUT_STATE XboxGamepadState = { };
 
 //Storage for if a Mouse or Keyboard Button is Pressed or Released Currently on Keyboard.
 //Raw Input scancodes can range from 0 to 383.
@@ -27,107 +15,158 @@ uint64_t KEYBOARD_BUTTONS_STATE[6] = {0};
 uint32_t KeyboardConfigurations[64] = { 0 };
 uint32_t ControllerConfigurations[64] = { 0 };
 
+//Action Bits will be true if the button to initate it was ever pressed. (Resets on update)
 uint64_t GameActionsInitiatedStorage = 0;
+//Action Bits will be true if the button is still being held without a Stop action occurring.
 uint64_t GameActionsAreActiveStorage = 0;
+//Action Bits will be true if the button to end this action was ever performed. (Resets on update)
 uint64_t GameActionsHaveEndedStorage = 0;
 
+uint64_t ControllerGameActionsAreToggled = 0;
+uint64_t KeyboardGameActionsAreToggled = 0;
 
 uint64_t XGameInput::MouseCalls = 0;
 
-constexpr int GetScanCodeIDCompileTime(const char VKeyId)
+uint8_t MenuActionFlags = 0x0;
+
+constexpr int GetScanCodeIDCompileTime(const uint8_t VKeyId)
 {
 	switch (VKeyId)
 	{
-		case 'W':
-			return 17;
-		case 'A':
-			return 30;
-		case 'S':
-			return 31;
-		case 'D':
-			return 32;
+	case 'W':
+		return 17;
+	case 'A':
+		return 30;
+	case 'S':
+		return 31;
+	case 'D':
+		return 32;
+	case 'G':
+		return 34;
+	case '~':
+		return 41;
 
-		case 'G':
-			return 34;
-
-		case VK_CONTROL:
-			return 29;
-		case VK_SHIFT:
-			return 42;
-		case VK_SPACE:
-			return 57;
-
-		default:
-			return 0;
+	case VK_CONTROL:
+		return 29;
+	case VK_SPACE:
+		return 57;
+	case VK_RETURN:
+		return 28;
+	case VK_BACK:
+		return 14;
+	case VK_LSHIFT:
+		return 42;
+	case VK_RSHIFT:
+		return 54;
+	case VK_TAB:
+		return 15;
+	
+	default:
+		return 0; // or some other appropriate value
 	}
 }
 
+constexpr int SCAN_CODE_W = GetScanCodeIDCompileTime('W');
+constexpr int SCAN_CODE_A = GetScanCodeIDCompileTime('A');
+constexpr int SCAN_CODE_S = GetScanCodeIDCompileTime('S');
+constexpr int SCAN_CODE_D = GetScanCodeIDCompileTime('D');
+constexpr int SCAN_CODE_G = GetScanCodeIDCompileTime('G');
+constexpr int SCAN_CODE_TILDE = GetScanCodeIDCompileTime('~');
+
+constexpr int SCAN_CODE_CONTROL_LEFT = GetScanCodeIDCompileTime(VK_CONTROL);
+constexpr int SCAN_CODE_SPACE = GetScanCodeIDCompileTime(VK_SPACE);
+constexpr int SCAN_CODE_ENTER = GetScanCodeIDCompileTime(VK_RETURN);
+constexpr int SCAN_CODE_BACKSPACE = GetScanCodeIDCompileTime(VK_BACK);
+constexpr int SCAN_CODE_SHIFT_LEFT = GetScanCodeIDCompileTime(VK_LSHIFT);
+constexpr int SCAN_CODE_SHIFT_RIGHT = GetScanCodeIDCompileTime(VK_RSHIFT);
+constexpr int SCAN_CODE_TAB = GetScanCodeIDCompileTime(VK_TAB);
+
 void XGameInput::InitializeDefaultConfigurations()
 { 
-	constexpr int ScanW = GetScanCodeIDCompileTime('W');
-	constexpr int ScanA = GetScanCodeIDCompileTime('A');
-	constexpr int ScanS = GetScanCodeIDCompileTime('S');
-	constexpr int ScanD = GetScanCodeIDCompileTime('D');
-	constexpr int ScanG = GetScanCodeIDCompileTime('G');
-		
-	constexpr int ScanShift = GetScanCodeIDCompileTime(VK_SHIFT);
-	constexpr int ScanControl = GetScanCodeIDCompileTime(VK_CONTROL);
-	constexpr int ScanSpace = GetScanCodeIDCompileTime(VK_SPACE);
+	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_FORWARD)] = ScanW;
+	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_LEFT)] = ScanA;
+	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_BACKWARD)] = ScanS;
+	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_RIGHT)] = ScanD;
 
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_FORWARD)] = ScanW;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_LEFT)] = ScanA;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_BACKWARD)] = ScanS;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::MOVE_RIGHT)] = ScanD;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = ScanG;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::HOLD_LOOK)] = SCAN_CODE_G;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SPRINT)] = SCAN_CODE_SHIFT_LEFT;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CROUCHING)] = SCAN_CODE_CONTROL_LEFT;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::JUMPING)] = SCAN_CODE_SPACE;
 
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = ScanShift;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::CROUCHING)] = ScanControl;
-	KeyboardConfigurations[static_cast<uint8_t>(InputActions::JUMPING)] = ScanSpace;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SELECTION_CONFIRM_BUTTON)] = SCAN_CODE_SPACE;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::BACK_OR_CANCEL_BUTTON)] = SCAN_CODE_BACKSPACE;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_PREVIOUS)] = SCAN_CODE_TILDE;  // SHIFT LEFT, LEFT BUMPER, LEFT TRIGGER.
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_NEXT)] = SCAN_CODE_TAB;  // SHIFT RIGHT, TAB, RIGHT BUMPER, RIGHT TRIGGER.
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_PREVIOUS)] = SCAN_CODE_A;  // A, ARROW_LEFT, DPAD_LEFT, Joystick's Left.
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_NEXT)] = SCAN_CODE_D;   // D, ARROW_RIGHT, DPAD_RIGHT, Joystick's Right.
 
-	ControllerConfigurations[static_cast<uint8_t>(InputActions::SPRINT)] = static_cast<uint8_t>(XboxControllerButtonIndexes::LEFT_STICK_CLICK);
-	ControllerConfigurations[static_cast<uint8_t>(InputActions::HOLD_LOOK)] = static_cast<uint8_t>(XboxControllerButtonIndexes::LEFT_BUMPER);
-	ControllerConfigurations[static_cast<uint8_t>(InputActions::CROUCHING)] = static_cast<uint8_t>(XboxControllerButtonIndexes::B_BUTTON);
-	ControllerConfigurations[static_cast<uint8_t>(InputActions::JUMPING)] = static_cast<uint8_t>(XboxControllerButtonIndexes::A_BUTTON);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SPRINT)] = XboxControllerButtonIndexes::LEFT_STICK_CLICK | (XboxControllerButtonIndexes::LEFT_STICK_CLICK << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::HOLD_LOOK)] = XboxControllerButtonIndexes::LEFT_BUMPER | (XboxControllerButtonIndexes::LEFT_BUMPER << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CROUCHING)] = XboxControllerButtonIndexes::B_BUTTON | (XboxControllerButtonIndexes::B_BUTTON << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::JUMPING)] = XboxControllerButtonIndexes::A_BUTTON | (XboxControllerButtonIndexes::A_BUTTON << 8);
 }
 
-bool XGameInput::LoadController()
+bool XGameInput::LoadAndProcessXboxInputChanges()
 {
-	// Capture the state of the gamepad before updating it
-	const uint16_t LastGamepadState = CurrentGamepadState.Gamepad.wButtons;
-
-	// Update the gamepad state
-	if (XInputGetState(0, &CurrentGamepadState) == ERROR_SUCCESS)
+	if (GameTime::IsHzBasedUpdateBlocked())
 	{
-		const uint16_t Current = CurrentGamepadState.Gamepad.wButtons;
+		return false;
+	}
 
-		if (Current != XBOX_BUTTONS_HELD)
+	// Capture the state of the gamepad before updating it
+	const uint16_t LastGamepadButtons = XboxGamepadState.Gamepad.wButtons;
+
+	if (XInputGetState(0, &XboxGamepadState) == ERROR_SUCCESS)
+	{
+		const uint16_t CurrentGamepadButtons = XboxGamepadState.Gamepad.wButtons;
+
+		if (CurrentGamepadButtons != LastGamepadButtons)
 		{
-			//wchar_t Buffer[64] = { 0 };
-			//swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"Button Value: %d\n", Current);
-			//OutputDebugString(Buffer);
+			wchar_t Buffer[64] = { 0 };
+			swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"Xbox Buttons Pressed: %d\n", CurrentGamepadButtons);
+			OutputDebugString(Buffer);
 
-			const uint16_t CurrentHeldButtons = LastGamepadState & Current;
+			int BUTTONS_HELD = LastGamepadButtons & CurrentGamepadButtons;
+			int BUTTONS_RELEASED = LastGamepadButtons ^ BUTTONS_HELD;
+			int BUTTONS_PRESSED = CurrentGamepadButtons ^ BUTTONS_HELD;
 
-			XBOX_BUTTONS_HELD = CurrentHeldButtons;
-			XBOX_BUTTONS_PRESSED = Current ^ CurrentHeldButtons;
+			//This is used for Menu Actions to suggest that a button has occurred and it's ANY BUTTON!
+			MenuActionFlags |= BUTTONS_PRESSED > 0;
 
-			const uint16_t XBOX_BUTTONS_RELEASED = LastGamepadState ^ CurrentHeldButtons;
+			for (int CurIndex = 0; CurIndex < static_cast<int>(GameInputActionsEnum::MAX); ++CurIndex)
+			{ 
+				int PackedButtonMappings = ControllerConfigurations[CurIndex];
 
-			uint16_t HELD = 0x0;
-			uint16_t PRESSED = 0x0;
-			uint16_t RELEASED = 0x0;
+				uint8_t Key1 = static_cast<uint8_t>(PackedButtonMappings);
+				uint8_t Key2 = static_cast<uint8_t>(PackedButtonMappings >> 0x8);
+				uint8_t Key3 = static_cast<uint8_t>(PackedButtonMappings >> 0x10);
+				uint8_t Key4 = static_cast<uint8_t>(PackedButtonMappings >> 0x18);
 
-			for (int CurIndex = 4; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
-			{
-				const uint8_t ActionBitsIndex = ControllerConfigurations[CurIndex];
-				HELD |= ((1 << ActionBitsIndex) & XBOX_BUTTONS_HELD);
-				PRESSED |= ((1 << ActionBitsIndex) & XBOX_BUTTONS_PRESSED);
-				RELEASED |= ((1 << ActionBitsIndex) & XBOX_BUTTONS_RELEASED);
+				int IsKeysPressedCombo1 = (BUTTONS_PRESSED & (1 << Key1)) >> Key1 & (BUTTONS_PRESSED & (1 << Key2)) >> Key2;
+				int IsKeysPressedCombo2 = (BUTTONS_PRESSED & (1 << Key3)) >> Key3 & (BUTTONS_PRESSED & (1 << Key4)) >> Key4;
+
+				int IsKeysReleasedCombo1 = (BUTTONS_RELEASED & (1 << Key1)) >> Key1 & (BUTTONS_RELEASED & (1 << Key2)) >> Key2;
+				int IsKeysReleasedCombo2 = (BUTTONS_RELEASED & (1 << Key3)) >> Key3 & (BUTTONS_RELEASED & (1 << Key4)) >> Key4;
+
+				int ActionPressedMask = ((IsKeysPressedCombo1 | IsKeysPressedCombo2) << CurIndex);
+				int ActionReleasedMask = (IsKeysReleasedCombo1 | IsKeysReleasedCombo2) << CurIndex;
+
+				if (ControllerGameActionsAreToggled & (1ULL << CurIndex))
+				{
+					GameActionsHaveEndedStorage |= (GameActionsAreActiveStorage & ActionPressedMask);
+					GameActionsAreActiveStorage ^= ActionPressedMask;
+					GameActionsInitiatedStorage |= (GameActionsAreActiveStorage & ActionPressedMask);
+					continue;
+				}
+
+				GameActionsInitiatedStorage |= ActionPressedMask;
+
+				GameActionsAreActiveStorage &= ~ActionReleasedMask;
+				GameActionsAreActiveStorage |= ActionPressedMask;
+
+				GameActionsHaveEndedStorage |= ActionReleasedMask;
+
 			}
-
-			ACTIONS_HELD_CONTROLLER = HELD;
-			ACTIONS_RELEASED_CONTROLLER = RELEASED;
-			ACTIONS_PRESSED_CONTROLLER = PRESSED;
 		}
 
 		return true;
@@ -238,64 +277,51 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 			//Update Action Press/Hold Storage if Key Change occurred.
 			if (LastStorageReadState != CurrentStorageReadState)
 			{
-				KEYBOARD_BUTTONS_STATE[ArrayIndex] = CurrentStorageReadState;
-
+				//Inverse of KeyReleasedFlag so we have a KeyPressedFlag as well as we need it for other situations.
 				const uint64_t KeyPressedFlag = KeyReleasedFlag ^ 1;
 
-				wchar_t KeyName[16] = {0};
-				GetScanCodeKeyName(KeyName, sizeof(KeyName) / sizeof(wchar_t), ScanCode);
+				//This is used for Menu Actions to suggest that a button has occurred and it's ANY BUTTON!
+				MenuActionFlags |= (0x1 & KeyPressedFlag);
 
-				//Process Loops all Actions, Creates a Mask
-				for (int CurIndex = 0; CurIndex < static_cast<int>(InputActions::MAX); ++CurIndex)
+				//Store the current status of our buttons in the main button state cache.
+				KEYBOARD_BUTTONS_STATE[ArrayIndex] = CurrentStorageReadState;
+
+				//This is to create Init, Hold, End action Events. Doing a Init/End in same frame causes nothing to occur.
+				for (int CurIndex = 0; CurIndex < static_cast<int>(GameInputActionsEnum::MAX); ++CurIndex)
 				{
-					if (KeyboardConfigurations[CurIndex] == ScanCode)
+					int KeyConfig1 = KeyboardConfigurations[CurIndex] & 0x1FF;
+					int KeyConfig2 = (KeyboardConfigurations[CurIndex] >> 0x9) & 0x1FF;
+
+					if (KeyConfig1 == ScanCode || KeyConfig2 == ScanCode)
 					{
+						uint64_t KeyPressedMask = KeyPressedFlag << CurIndex;
+						uint64_t KeyReleaseMask = KeyReleasedFlag << CurIndex;
 
 						bool Toggle = true;
 
-						const uint64_t KeyPressedMask = KeyPressedFlag << CurIndex;
-
-						//Toggle Action Storage Via (Press) Activate + Stays Active, (Press) Ends Activity.
-						if (Toggle)
+						//For Buttons that are "Toggle Press" style'd. Init/End only reset on Frame Update. Active Flips Every Press.
+						if (KeyboardGameActionsAreToggled & (1ULL << CurIndex))
 						{
-							uint64_t StartMaskValue = GameActionsInitiatedStorage & KeyPressedMask;
-
-							//If Release occurs we'll always flip ZERO so no changes will occur.
-
-							//This is to ensure if double press,triple,or more occurred b4 next update, value is set to ZERO.
-							//If regular updates occurred it should flow with 0,1,0,1,0,1,etc.. to generate a stop event.
-							uint64_t ActiveMaskValue = GameActionsAreActiveStorage & KeyPressedMask;
-							GameActionsHaveEndedStorage ^= KeyPressedMask & (ActiveMaskValue ^ StartMaskValue);
-
-							//Flip the active state.
+							GameActionsHaveEndedStorage |= (GameActionsAreActiveStorage & KeyPressedMask);
 							GameActionsAreActiveStorage ^= KeyPressedMask;
-
-							//This is to ensure if double press,triple,or more occurred b4 next update, value is set to ZERO.
-							//If regular updates occurred it should flow with 1,0,1,0,1,0,etc.. to generate a start event.
-							ActiveMaskValue = GameActionsAreActiveStorage & KeyPressedMask;
-							StartMaskValue = GameActionsInitiatedStorage & KeyPressedMask;
-							GameActionsInitiatedStorage ^= KeyPressedMask & (ActiveMaskValue ^ StartMaskValue);
-							break;
+							GameActionsInitiatedStorage |= (GameActionsAreActiveStorage & KeyPressedMask);
+							continue;
 						} 
 
-						const uint64_t KeyReleasedMask = KeyReleasedFlag << CurIndex;
-
-						//Hold Action Storage Via (Press) Activates + Stays Active, (Release) Ends Activity.
-
-						GameActionsInitiatedStorage &= ~KeyReleasedMask;
+						//For Buttons that are "Hold/Release" style'd. Init/End only reset on Frame Update. Active enabled only on Press/Hold.
 						GameActionsInitiatedStorage |= KeyPressedMask;
 
-						//We do same actions to the Active Cache so we don't damage the other statuses. 
-						GameActionsAreActiveStorage &= ~KeyReleasedMask;
+						GameActionsAreActiveStorage &= ~KeyReleaseMask;
 						GameActionsAreActiveStorage |= KeyPressedMask;
 
-						//Stop becomes the inverse of start unless an update hasn't occured then it's zero.
-						GameActionsHaveEndedStorage &= ~KeyPressedMask;
-						GameActionsHaveEndedStorage |= KeyReleasedMask;
+						GameActionsHaveEndedStorage |= KeyReleaseMask;
 
-						break;
+						continue;
 					}
 				}
+
+				wchar_t KeyName[16] = { 0 };
+				GetScanCodeKeyName(KeyName, sizeof(KeyName) / sizeof(wchar_t), ScanCode);
 
 				if (KeyName[0] != NULL)
 				{
@@ -303,10 +329,6 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 					swprintf_s(Buffer, sizeof(Buffer) / sizeof(Buffer[0]), L"ScanCode: %d, Name: %s, Flag: %d, MakeCode: %d, VKeyID: %d\n", ScanCode, KeyName, RawInput->data.keyboard.Flags, RawInput->data.keyboard.MakeCode, RawInput->data.keyboard.VKey);
 					OutputDebugString(Buffer);
 				}
-			} 
-			else 
-			{
-				OutputDebugString(L"Key Held\n");
 			}
 			break;
 		}
@@ -370,35 +392,45 @@ void XGameInput::StoreRawInputStateChanges(RAWINPUT* &RawInput)
 
 int16_t XGameInput::GetLeftStickX()
 {
-	return CurrentGamepadState.Gamepad.sThumbLX;
+	return XboxGamepadState.Gamepad.sThumbLX;
 }
 
 int16_t XGameInput::GetLeftStickY()
 {
-	return CurrentGamepadState.Gamepad.sThumbLY;
+	return XboxGamepadState.Gamepad.sThumbLY;
 }
 
 int16_t XGameInput::GetRightStickX()
 {
-	return CurrentGamepadState.Gamepad.sThumbRX;
+	return XboxGamepadState.Gamepad.sThumbRX;
 }
 
 int16_t XGameInput::GetRightStickY()
 {
-	return CurrentGamepadState.Gamepad.sThumbRY;
+	return XboxGamepadState.Gamepad.sThumbRY;
 }
 
-bool XGameInput::ActionHasStarted(InputActions Action)
+bool XGameInput::ActionWasInitiated(GameInputActionsEnum Action)
 {
+	if (GameActionsInitiatedStorage != 0x0)
+	{
+		int junk2 = 0;
+	}
+
 	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsInitiatedStorage;
 }
 
-bool XGameInput::ActionIsCurrentlyActive(InputActions Action)
+bool XGameInput::ActionIsCurrentlyActive(GameInputActionsEnum Action)
 {
 	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsAreActiveStorage;
 }
 
-bool XGameInput::ActionHasEnded(InputActions Action)
+bool XGameInput::ActionHasEnded(GameInputActionsEnum Action)
 {
 	return (1ULL << static_cast<uint8_t>(Action)) & GameActionsHaveEndedStorage;
+}
+
+bool XGameInput::HasFlagSettings(const uint8_t FlagSettings)
+{
+	return (MenuActionFlags & FlagSettings) == FlagSettings;
 }

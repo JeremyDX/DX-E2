@@ -142,13 +142,13 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 	bool CameraNeedsUpdate = false;
 
-	if (XGameInput::IsControllerActionPressed(InputActions::HOLD_LOOK))
+	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::HOLD_LOOK))
 	{
 		CameraYawSnapshot = CameraYaw;
 		CameraYawReturnRate = 0.0f;
 	}
 
-	if (XGameInput::IsControllerActionReleased(InputActions::HOLD_LOOK))
+	if (XGameInput::ActionHasEnded(GameInputActionsEnum::HOLD_LOOK))
 	{
 		CameraYawReturnRate = (CameraYawSnapshot - CameraYaw) / 2.0f;
 	}
@@ -161,7 +161,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 		CameraYaw += TurnCalculation;
 
-		if (XGameInput::IsControllerActionHeld(InputActions::HOLD_LOOK))
+		if (XGameInput::ActionIsCurrentlyActive(GameInputActionsEnum::HOLD_LOOK))
 		{
 			if (CameraYaw > CameraYawSnapshot)
 			{
@@ -230,7 +230,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{
-		if (XGameInput::IsControllerActionPressed(InputActions::SPRINT))
+		if (XGameInput::ActionWasInitiated(GameInputActionsEnum::SPRINT))
 		{
 			bIsSprinting = !bIsSprinting;
 		}

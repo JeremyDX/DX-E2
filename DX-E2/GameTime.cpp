@@ -10,17 +10,19 @@ uint64_t TotalRunningCyclesElapsed;				//Initialize Sets to 0 ---------------- T
 uint64_t LastTickDeltaCycles;					//Initialize Sets to 0 ---------------- Total Clock Cycles Elapsed Since the last Frame Execution.
 uint64_t CyclesPerSecond;						//Initialize Sets to QPC Frequency ---- How many Clock Cycles make up a Full Real Second.
 uint64_t TotalTickLoopsExecuted;				//Initialize Sets to 0 ---------------- How many times the Tick() function was Executed as a means of tracking things. 
-
 uint64_t DebugLastSavedTickLoops;
 uint64_t DebugLastSavedRunningCycles;
 
 float SecondsPerCounterCycle;					//Initialize Sets to 1.0 / Frequency -- How much Real Time makes up a singular clock cycle.
-float ClockCyclesPerUpdateHzRate;				//Initialize Sets this to (Frequency / Target Hz Rate). This is how many clock cycles will equal a Target Frame Rate Singular Frame.
+float ClockCyclesPerTargetUpdateHzRate;				//Initialize Sets this to (Frequency / Target Hz Rate). This is how many clock cycles will equal a Target Frame Rate Singular Frame.
 float CyclesPerMicrosecond;						//Initialize Sets this to (Frequency / 1 MILLION). This is how many Clock Cycles will create a full MicroSecond. We use float as this is more precise then seconds.
 
 float CurrentTargetFrameTimeInSeconds;
+float ElapsedTimeSinceLastHzUpdate;			//Initialize Sets to 0 ---------------- Is the Elapsed Clock Cycles and will be Reset to 0 as a cleanup stage if exceeds Target Frame Rate.
 
-void GameTime::Initialize(int UpdateHzRate)
+bool HzRateUpdatesBlocked = false;
+
+void GameTime::Initialize(int TargetUpdateHzRate)
 {
 	LARGE_INTEGER FrequencyCount;
 
@@ -28,10 +30,10 @@ void GameTime::Initialize(int UpdateHzRate)
 	QueryPerformanceFrequency(&FrequencyCount);
 	CyclesPerSecond = FrequencyCount.QuadPart;
 	SecondsPerCounterCycle = 1.0f / static_cast<float>(CyclesPerSecond);
-	ClockCyclesPerUpdateHzRate = CyclesPerSecond / static_cast<float>(UpdateHzRate); //166666.666667 @ 60hz
+	ClockCyclesPerTargetUpdateHzRate = CyclesPerSecond / static_cast<float>(TargetUpdateHzRate); //166666.666667 @ 60hz
 	CyclesPerMicrosecond = static_cast<float>(CyclesPerSecond) / 1000000.0f; //In most cases this should be 10.0f
 
-	CurrentTargetFrameTimeInSeconds = 1.0f / UpdateHzRate;
+	CurrentTargetFrameTimeInSeconds = 1.0f / TargetUpdateHzRate;
 
 	//Gets the Current TimeStamp that we excute our ticking system.
 	QueryPerformanceCounter(&StartingTimeStamp);
@@ -43,6 +45,8 @@ void GameTime::Initialize(int UpdateHzRate)
 
 	DebugLastSavedTickLoops = 0;
 	DebugLastSavedRunningCycles = 0;
+
+	ElapsedTimeSinceLastHzUpdate = 0;
 }
 
 void GameTime::Tick()
@@ -54,7 +58,21 @@ void GameTime::Tick()
 	LastTickDeltaCycles = CurrentTimeStamp.QuadPart - PreviousTimeStamp.QuadPart;
 	TotalRunningCyclesElapsed = CurrentTimeStamp.QuadPart - StartingTimeStamp.QuadPart;
 
+	ElapsedTimeSinceLastHzUpdate += LastTickDeltaCycles;
+
+	HzRateUpdatesBlocked = true;
+	if (ElapsedTimeSinceLastHzUpdate > ClockCyclesPerTargetUpdateHzRate)
+	{
+		HzRateUpdatesBlocked = false;
+		ElapsedTimeSinceLastHzUpdate -= ClockCyclesPerTargetUpdateHzRate;
+	}
+
 	++TotalTickLoopsExecuted;
+}
+
+bool GameTime::IsHzBasedUpdateBlocked()
+{
+	return HzRateUpdatesBlocked;
 }
 
 /*
@@ -63,18 +81,12 @@ void GameTime::Tick()
 */
 uint64_t GameTime::GetAbsoluteFrameTicks()
 {
-	return static_cast<uint64_t>(TotalRunningCyclesElapsed / ClockCyclesPerUpdateHzRate);
+	return static_cast<uint64_t>(TotalRunningCyclesElapsed / ClockCyclesPerTargetUpdateHzRate);
 }
 
 float GameTime::GetFrameTickLimit()
 {
 	return CurrentTargetFrameTimeInSeconds;
-}
-
-float GameTime::GetFrameTickDelta()
-{
-	//NEED TO FIX?
-	return 0.0f; // (LastTickDeltaCycles / ClockCyclesPerUpdateHzRate)* GetFrameTickLimit();
 }
 
 uint64_t GameTime::GetTotalTickLoopsExecuted()

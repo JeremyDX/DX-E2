@@ -15,7 +15,7 @@ ContentWindow::~ContentWindow() { }
 */
 void UpdateToWindow(void)
 {
-	if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_A))
+	if (XGameInput::HasFlagSettings(0x1))
 	{
 		ContentLoader::PresentWindow(ContentLoader::m_index + 1);
 	}
@@ -25,7 +25,7 @@ void ProcessMenuButtons(void)
 {
 	ContentWindow& cw = ContentLoader::GetCurrentWindow();
 	cw.children();
-	if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_DPAD_RIGHT | XINPUT_GAMEPAD_X | XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_BACK))
+	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::SELECTION_CONFIRM_BUTTON))
 	{
 		switch (cw.menu_index)
 		{
@@ -56,7 +56,7 @@ void MenuUpdateDownUp(void)
 void MenuUpdateLeftRight(void)
 {
 	ContentWindow& cw = ContentLoader::GetCurrentWindow();
-	if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_DPAD_LEFT))
+	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::CHANGE_SELECTION_PREVIOUS))
 	{
 		int oldPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		--cw.menu_index;
@@ -65,7 +65,7 @@ void MenuUpdateLeftRight(void)
 		int newPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		ContentLoader::SwapQuadsPosition(oldPosition, newPosition);
 	}
-	else if (XGameInput::GetControllerButtonsPressed(XINPUT_GAMEPAD_DPAD_RIGHT))
+	else if (XGameInput::ActionWasInitiated(GameInputActionsEnum::CHANGE_SELECTION_NEXT))
 	{
 		int oldPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		++cw.menu_index;

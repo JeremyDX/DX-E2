@@ -30,23 +30,30 @@ enum XboxControllerButtonIndexes : uint8_t
 	Y_BUTTON
 };
 
-enum class InputActions : uint8_t
+//From here onward these have 1:1 mapping with Controller, Keyboard, Mouse buttons.
+enum class GameInputActionsEnum : uint8_t
 {
-	//This specific Actions although tied to WASD for instance are not regularly used they are compared against controlled Joysticks.
-	MOVE_FORWARD,
-	MOVE_BACKWARD,
-	MOVE_RIGHT,
-	MOVE_LEFT,
-
-	//From here onward these have 1:1 mapping with Controller, Keyboard, Mouse buttons.
+	//Toggle/Hold Actions
 	SPRINT,
-	HOLD_LOOK,
 	CROUCHING,
-	JUMPING,
+	HOLD_LOOK,
 
-	//Actions that hold their Press/Release actions.
-	INTERFACE_ACCEPT,
-	INTERFACE_BACK,
+	//Non Toggle/Hold Actions.
+	JUMPING,
+	PRIMARY_FIRE,
+	SECONDARY_FIRE,
+	SWAP_TO_NEXT_WEAPON,
+	SWAP_TO_PREVIOUS_WEAPON,
+	SWAP_TO_MELEE_WEAPON,
+	DIVE_TO_PRONE,
+	LAY_TO_PRONE,
+
+	SELECTION_CONFIRM_BUTTON,  // Spacebar, Enter, XBOX_A, etc.
+	BACK_OR_CANCEL_BUTTON,  // XBOX_B, ESC, Backspace.
+	CHANGE_TAB_PREVIOUS,  // SHIFT LEFT, LEFT BUMPER, LEFT TRIGGER.
+	CHANGE_TAB_NEXT,  // SHIFT RIGHT, TAB, RIGHT BUMPER, RIGHT TRIGGER.
+	CHANGE_SELECTION_PREVIOUS,  // A, ARROW_LEFT, DPAD_LEFT, Joystick's Left.
+	CHANGE_SELECTION_NEXT,   // D, ARROW_RIGHT, DPAD_RIGHT, Joystick's Right.
 
 	//End Of Actions
 	MAX
@@ -57,7 +64,7 @@ class XGameInput
 	public:
 
 		static void InitializeDefaultConfigurations();
-		static bool LoadController();
+		static bool LoadAndProcessXboxInputChanges();
 
 		static void GameInputPostProcessing();
 		static void StoreRawInputStateChanges(RAWINPUT* &RawInput);
@@ -67,9 +74,12 @@ class XGameInput
 		static int16_t GetRightStickX();
 		static int16_t GetRightStickY();
 
-		static bool ActionHasStarted(InputActions Action);
-		static bool ActionIsCurrentlyActive(InputActions Action);
-		static bool ActionHasEnded(InputActions Action);
+		//Toggle/Hold style'd Actions are accessed here.
+		static bool ActionWasInitiated(GameInputActionsEnum Action);
+		static bool ActionIsCurrentlyActive(GameInputActionsEnum Action);
+		static bool ActionHasEnded(GameInputActionsEnum Action);
+
+		static bool HasFlagSettings(const uint8_t FlagSettings);
 
 	public:
 

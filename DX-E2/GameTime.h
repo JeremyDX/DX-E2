@@ -18,10 +18,11 @@ public:
 	static uint64_t GetAbsoluteFrameTicks();
 
 	static float GetDeltaElapsedTime();
-	static float GetFrameTickDelta();
 	static float GetFrameTickLimit();
 
 	static float GetCurrentTimeMicros();
+
+	static bool IsHzBasedUpdateBlocked();
 
 	static bool GetFPSDisplayCounterRate(float FpsUpdateFrequencyInSeconds, float& Out_TotalFPS);
 };

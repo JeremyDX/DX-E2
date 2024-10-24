@@ -427,6 +427,14 @@ void Engine::Reset()
 	}
 }
 
+void ClearResources()
+{
+	ComPtr<ID3D11Debug> debugInterface;
+	if (SUCCEEDED(Engine::device.As(&debugInterface))) {
+		debugInterface->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+	}
+}
+
 //Only To Be Called Once. Secondary Call Will Kill Execution and End Program.
 int Engine::StartGameLoop(void* vRawHWNDPtr)
 {
@@ -448,16 +456,17 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 
 			if (Msg.message == WM_QUIT)
 			{
+				ClearResources();
 				return 0;
 			}
 		}
 
-		XGameInput::LoadController();
-
-		XGameInput::GameInputPostProcessing();
+		XGameInput::LoadAndProcessXboxInputChanges();
 
 		Update();
 		Render();
+
+		XGameInput::GameInputPostProcessing();
 
 		GameTime::Tick();
 
@@ -471,6 +480,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			SetWindowTextA(hWnd, Message);
 		}
 	}
+	ClearResources();
 
 	return 0;
 }
