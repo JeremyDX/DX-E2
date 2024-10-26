@@ -60,6 +60,12 @@ constexpr int GetScanCodeIDCompileTime(const uint8_t VKeyId)
 		return 54;
 	case VK_TAB:
 		return 15;
+	case VK_ESCAPE:
+		return 1;
+	case VK_LEFT:
+		return 75;
+	case VK_RIGHT:
+		return 77;
 	
 	default:
 		return 0; // or some other appropriate value
@@ -73,6 +79,7 @@ constexpr int SCAN_CODE_D = GetScanCodeIDCompileTime('D');
 constexpr int SCAN_CODE_G = GetScanCodeIDCompileTime('G');
 constexpr int SCAN_CODE_TILDE = GetScanCodeIDCompileTime('~');
 
+constexpr int SCAN_CODE_ESCAPE = GetScanCodeIDCompileTime(VK_ESCAPE);
 constexpr int SCAN_CODE_CONTROL_LEFT = GetScanCodeIDCompileTime(VK_CONTROL);
 constexpr int SCAN_CODE_SPACE = GetScanCodeIDCompileTime(VK_SPACE);
 constexpr int SCAN_CODE_ENTER = GetScanCodeIDCompileTime(VK_RETURN);
@@ -81,6 +88,9 @@ constexpr int SCAN_CODE_SHIFT_LEFT = GetScanCodeIDCompileTime(VK_LSHIFT);
 constexpr int SCAN_CODE_SHIFT_RIGHT = GetScanCodeIDCompileTime(VK_RSHIFT);
 constexpr int SCAN_CODE_TAB = GetScanCodeIDCompileTime(VK_TAB);
 
+constexpr int SCAN_CODE_LEFT_ARROW = GetScanCodeIDCompileTime(VK_LEFT);
+constexpr int SCAN_CODE_RIGHT_ARROW = GetScanCodeIDCompileTime(VK_RIGHT);
+
 void XGameInput::InitializeDefaultConfigurations()
 { 
 	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_FORWARD)] = ScanW;
@@ -88,22 +98,29 @@ void XGameInput::InitializeDefaultConfigurations()
 	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_BACKWARD)] = ScanS;
 	//KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::MOVE_RIGHT)] = ScanD;
 
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::HOLD_LOOK)] = SCAN_CODE_G;
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SPRINT)] = SCAN_CODE_SHIFT_LEFT;
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CROUCHING)] = SCAN_CODE_CONTROL_LEFT;
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::JUMPING)] = SCAN_CODE_SPACE;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::HOLD_LOOK)]	= SCAN_CODE_G;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SPRINT)]		= SCAN_CODE_SHIFT_LEFT;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CROUCHING)]	= SCAN_CODE_CONTROL_LEFT;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::JUMPING)]		= SCAN_CODE_SPACE;
 
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SELECTION_CONFIRM_BUTTON)] = SCAN_CODE_SPACE;
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::BACK_OR_CANCEL_BUTTON)] = SCAN_CODE_BACKSPACE;
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_PREVIOUS)] = SCAN_CODE_TILDE;  // SHIFT LEFT, LEFT BUMPER, LEFT TRIGGER.
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_NEXT)] = SCAN_CODE_TAB;  // SHIFT RIGHT, TAB, RIGHT BUMPER, RIGHT TRIGGER.
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_PREVIOUS)] = SCAN_CODE_A;  // A, ARROW_LEFT, DPAD_LEFT, Joystick's Left.
-	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_NEXT)] = SCAN_CODE_D;   // D, ARROW_RIGHT, DPAD_RIGHT, Joystick's Right.
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SELECTION_CONFIRM_BUTTON)]	= SCAN_CODE_SPACE;
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::BACK_OR_CANCEL_BUTTON)]		= SCAN_CODE_BACKSPACE | (SCAN_CODE_ESCAPE << 9);
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_PREVIOUS)]			= SCAN_CODE_TILDE | (SCAN_CODE_LEFT_ARROW << 9);
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_NEXT)]				= SCAN_CODE_TAB | (SCAN_CODE_RIGHT_ARROW << 9);
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_PREVIOUS)]	= SCAN_CODE_A | (SCAN_CODE_W << 9); 
+	KeyboardConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_NEXT)]		= SCAN_CODE_D | (SCAN_CODE_S << 9); 
+ 
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SPRINT)]	= XboxControllerButtonIndexes::LEFT_STICK_CLICK | (XboxControllerButtonIndexes::LEFT_STICK_CLICK << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::HOLD_LOOK)] = XboxControllerButtonIndexes::LEFT_BUMPER		| (XboxControllerButtonIndexes::LEFT_BUMPER << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CROUCHING)] = XboxControllerButtonIndexes::B_BUTTON			| (XboxControllerButtonIndexes::B_BUTTON << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::JUMPING)]	= XboxControllerButtonIndexes::A_BUTTON			| (XboxControllerButtonIndexes::A_BUTTON << 8);
 
-	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SPRINT)] = XboxControllerButtonIndexes::LEFT_STICK_CLICK | (XboxControllerButtonIndexes::LEFT_STICK_CLICK << 8);
-	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::HOLD_LOOK)] = XboxControllerButtonIndexes::LEFT_BUMPER | (XboxControllerButtonIndexes::LEFT_BUMPER << 8);
-	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CROUCHING)] = XboxControllerButtonIndexes::B_BUTTON | (XboxControllerButtonIndexes::B_BUTTON << 8);
-	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::JUMPING)] = XboxControllerButtonIndexes::A_BUTTON | (XboxControllerButtonIndexes::A_BUTTON << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::SELECTION_CONFIRM_BUTTON)] = XboxControllerButtonIndexes::A_BUTTON | (XboxControllerButtonIndexes::A_BUTTON << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::BACK_OR_CANCEL_BUTTON)] = XboxControllerButtonIndexes::B_BUTTON | (XboxControllerButtonIndexes::B_BUTTON << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_PREVIOUS)] = XboxControllerButtonIndexes::LEFT_BUMPER | (XboxControllerButtonIndexes::LEFT_BUMPER << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_TAB_NEXT)] = XboxControllerButtonIndexes::RIGHT_BUMPER | (XboxControllerButtonIndexes::RIGHT_BUMPER << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_PREVIOUS)] = XboxControllerButtonIndexes::D_PAD_LEFT | (XboxControllerButtonIndexes::D_PAD_LEFT << 8);
+	ControllerConfigurations[static_cast<uint8_t>(GameInputActionsEnum::CHANGE_SELECTION_NEXT)] = XboxControllerButtonIndexes::D_PAD_RIGHT | (XboxControllerButtonIndexes::D_PAD_RIGHT << 8);
 }
 
 bool XGameInput::LoadAndProcessXboxInputChanges()

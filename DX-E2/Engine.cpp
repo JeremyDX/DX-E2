@@ -9,7 +9,9 @@
 #include "ScreenManagerSystem.h"
 #include <d3dcompiler.h>
 #include "BinaryReaderWriter.h"
+#include "BinaryCacheLoader.h"
 #include <cstdio>
+#include <dxgi1_4.h>
 
 using namespace Microsoft::WRL;
 
@@ -48,36 +50,7 @@ ComPtr<ID3D11SamplerState> sampler;
 
 void CreatePipeline()
 {
-	Microsoft::WRL::ComPtr<ID3D10Blob> VertexShaderBlob;
-	Microsoft::WRL::ComPtr<ID3D10Blob> PixelShaderBlob;
-
-	char* VertexShaderString = NULL;
-	int VertexShaderLength = 0;
-	BinaryReaderWriter::ReadTextFileIntoBuffer("VertexShader.hlsl", VertexShaderString, VertexShaderLength);
-
-	char* PixelShaderString = NULL;
-	int PixelShaderLength = 0;
-	BinaryReaderWriter::ReadTextFileIntoBuffer("PixelShader.hlsl", PixelShaderString, PixelShaderLength);
-
-	// Compile Shaders
-	if (VertexShaderString == NULL || PixelShaderString == NULL)
-	{
-		ENGINE_ERROR_CODE = 2;
-		return;
-	}
-
-	HRESULT HR1 = D3DCompile(VertexShaderString, VertexShaderLength, NULL, NULL, NULL, "main", "vs_5_0", NULL, NULL, VertexShaderBlob.GetAddressOf(), NULL);
-	HRESULT HR2 = D3DCompile(PixelShaderString, PixelShaderLength, NULL, NULL, NULL, "main", "ps_5_0", NULL, NULL, PixelShaderBlob.GetAddressOf(), NULL);
-
-	Engine::device->CreateVertexShader(VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), NULL, &vertexshader);
-	Engine::device->CreatePixelShader(PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), NULL, &pixelshader);
-
-	Engine::context->VSSetShader(vertexshader.Get(), NULL, 0);
-	Engine::context->PSSetShader(pixelshader.Get(), NULL, 0);
-
-	// create and set the input layout
-	Engine::device->CreateInputLayout(Constants::Layout_Byte32, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &inputlayout);
-	Engine::context->IASetInputLayout(inputlayout.Get());
+	BinaryCacheLoader::LoadShaders();
 
 	// define and set the constant buffer
 	D3D11_BUFFER_DESC bd = { 0 };
@@ -119,6 +92,10 @@ void PostLevelLoading()
 
 	Engine::context->VSSetShaderResources(0, 1, Resource3); // Bind height map to slot t0
 	Engine::context->VSSetSamplers(0, 1, &SamplerState);
+
+	Engine::context->UpdateSubresource(d3d_const_buffer.Get(), 0, 0, &CameraEngine::final_result, 0, 0);
+
+	Engine::context->VSSetConstantBuffers(0, 1, d3d_const_buffer.GetAddressOf());
 }
 
 
@@ -303,6 +280,7 @@ void Update()
 	if (ContentLoader::ALLOW_3D_PROCESSING && CameraEngine::PrimaryCameraUpdatedLookAt())
 	{
 		Engine::context->UpdateSubresource(d3d_const_buffer.Get(), 0, 0, &CameraEngine::final_result, 0, 0);
+		Engine::context->VSSetConstantBuffers(0, 1, d3d_const_buffer.GetAddressOf());
 	}
 
 	//Submit Fresh Buffer To GPU.
@@ -314,6 +292,7 @@ UINT offset = 0;
 
 void Render()
 {
+
 	//Set the RenderTarget to the Swapped Buffer So We Can Draw To It!
 	Engine::context->ClearDepthStencilView(zbuffer.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	Engine::context->OMSetRenderTargets(1, rendertarget.GetAddressOf(), zbuffer.Get());
@@ -321,12 +300,14 @@ void Render()
 
 	if (ContentLoader::ALLOW_3D_PROCESSING)
 	{
+		Engine::context->VSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(4));
+
+		BinaryCacheLoader::UseShaders(1, 1);	
+	
 		Engine::context->PSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(3));
 		Engine::context->PSSetSamplers(0, 1, sampler.GetAddressOf());
 
-		Engine::context->UpdateSubresource(d3d_const_buffer.Get(), 0, 0, &CameraEngine::final_result, 0, 0);
 		Engine::context->OMSetDepthStencilState(depthonstate.Get(), 0);
-		Engine::context->VSSetConstantBuffers(0, 1, d3d_const_buffer.GetAddressOf());
 
 		Engine::context->IASetVertexBuffers(0, 1, ContentLoader::static_mesh_buffer.GetAddressOf(), &stride, &offset);
 		Engine::context->Draw(ContentLoader::static_mesh_buffer_size, 0);
@@ -335,8 +316,9 @@ void Render()
 	//Draw 2D.
 	if (ContentLoader::m_index >= 0)
 	{
+		BinaryCacheLoader::UseShaders(0, 0);
+
 		Engine::context->OMSetDepthStencilState(depthoffstate.Get(), 0);
-		Engine::context->VSSetConstantBuffers(0, 1, d2d_const_buffer.GetAddressOf());
 		Engine::context->PSSetSamplers(0, 1, sampler.GetAddressOf());
 
 		float BlendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -364,8 +346,9 @@ void Render()
 
 	if (ContentLoader::s_index >= 0)
 	{
+		BinaryCacheLoader::UseShaders(0, 0);
+
 		Engine::context->OMSetDepthStencilState(depthoffstate.Get(), 0);
-		Engine::context->VSSetConstantBuffers(0, 1, d2d_const_buffer.GetAddressOf());
 
 		float BlendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		Engine::context->OMSetBlendState(blendstate.Get(), BlendFactor, 0xFFFFFFFF);
@@ -380,7 +363,7 @@ void Render()
 		for (int i = 1; i < co.total_textures; ++i)
 		{
 			Engine::context->PSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(co.texture_index[i]));
-			//Engine::context->Draw(co.offsets[i], co.offsets[i - 1]);
+			Engine::context->Draw(co.offsets[i], co.offsets[i - 1]);
 		}
 	}
 
@@ -388,6 +371,33 @@ void Render()
 }
 
 bool KEEP_LOOPING = true;
+
+double GetGPUMemoryUsageInMB()
+{
+	ComPtr<IDXGIFactory4> dxgiFactory;
+	ComPtr<IDXGIAdapter3> dxgiAdapter;
+	DXGI_QUERY_VIDEO_MEMORY_INFO memoryInfo = {};
+
+	if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory))))
+	{
+		OutputDebugStringW(L"Failed to create DXGIFactory.\n");
+		return -1.0f;
+	}
+
+	if (FAILED(dxgiFactory->EnumAdapters1(0, reinterpret_cast<IDXGIAdapter1**>(dxgiAdapter.GetAddressOf()))))
+	{
+		OutputDebugStringW(L"Failed to retrieve DXGI Adapter.\n");
+		return -1.0f;
+	}
+
+	if (FAILED(dxgiAdapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memoryInfo)))
+	{
+		OutputDebugStringW(L"Failed to query video memory info.\n");
+		return -1.0f;
+	}
+
+	return static_cast<double>(memoryInfo.CurrentUsage) / 1048576.0;
+}
 
 //Force Kill Program.
 void Engine::Stop()
@@ -476,7 +486,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			char Message[464];
 			char CameraDebugString[460];
 			CameraEngine::GetDebugString(CameraDebugString, sizeof(CameraDebugString));
-			sprintf_s(Message, "FPS: %f (%.6f MS), ABS Ticks: %llu, DebugString: %s, MouseDebug: %llu", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString, XGameInput::MouseCalls);
+			sprintf_s(Message, "FPS: %f (%.6f MS), ABS Ticks: %llu, DebugString: %s, MouseDebug: %llu, GPU Mem: %.3f MB", TotalFPS, 1000.0f / TotalFPS, GameTime::GetAbsoluteFrameTicks(), CameraDebugString, XGameInput::MouseCalls, GetGPUMemoryUsageInMB());
 			SetWindowTextA(hWnd, Message);
 		}
 	}

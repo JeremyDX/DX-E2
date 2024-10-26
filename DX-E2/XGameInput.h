@@ -19,7 +19,7 @@ enum XboxControllerButtonIndexes : uint8_t
 	RIGHT_CLICK_STICK,
 
 	LEFT_BUMPER,
-	RIGHT_NUMPER,
+	RIGHT_BUMPER,
 
 	PLACE_HOLDER_1,
 	PLACE_HOLDER_2,

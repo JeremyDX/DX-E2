@@ -296,7 +296,7 @@ int XModelMesh::CheckBasicCollision(Float3 &ref, Float2 &move_vector, int view_r
 								return 4;
 							}
 						}
-						//180-269 Degrees.
+						//1ValTestUnknown-269 Degrees.
 						//Right,Top
 					}
 					else
@@ -503,9 +503,11 @@ const float CreateShaderColor(const float brightness, const float alpha)
 
 int32_t XModelMesh::InsertObjectToMap(Vertex32Byte * verts, int & offset, int id, int xunits, int yunits, int zunits)
 {
-	float x = xunits / 80.0f;
-	float y = yunits / 80.0f;
-	float z = zunits / 80.0f;
+	int ValTestUnknown = 1.0f;
+
+	float x = xunits / ValTestUnknown;
+	float y = yunits / ValTestUnknown;
+	float z = zunits / ValTestUnknown;
 	const Float3 c = { CreateShaderColor(0.5f, 1.0f), 0.5f, 0.5f };
 	ObjectDefinition &obj = definitions[id];
 	for (int i = obj.buffer_begin; i <= obj.buffer_end; ++i)
@@ -528,26 +530,26 @@ int32_t XModelMesh::InsertObjectToMap(Vertex32Byte * verts, int & offset, int id
 	int z_min = zunits - obj.depth;
 	int z_max = zunits + obj.depth;
 
-	if (!(z_max < 0 || x_max < 0 || z_min >= 7680 || x_min >= 7680))
+	if (!(z_max < 0 || x_max < 0 || z_min >= (96 * ValTestUnknown) || x_min >= (96 * ValTestUnknown)))
 	{
 		if (z_min < 0)
 			z_min = 0;
 		if (x_min < 0)
 			x_min = 0;
-		if (z_max > 7679)
-			z_max = 7679;
-		if (x_max > 7679)
-			x_max = 7679;
+		if (z_max > (95 * ValTestUnknown))
+			z_max = (95 * ValTestUnknown);
+		if (x_max > (95 * ValTestUnknown))
+			x_max = (95 * ValTestUnknown);
 
-		int x_start = x_min / 80;
-		int x_end = x_max / 80;
-		int z_start = z_min / 80;
-		int z_end = z_max / 80;
+		int x_start = x_min / ValTestUnknown;
+		int x_end = x_max / ValTestUnknown;
+		int z_start = z_min / ValTestUnknown;
+		int z_end = z_max / ValTestUnknown;
 
-		int pot_x_start = (x_min - OBJECT_ACCESS_PADDING) / 80;
-		int pot_x_end = (x_max + OBJECT_ACCESS_PADDING) / 80;
-		int pot_z_start = (z_min - OBJECT_ACCESS_PADDING) / 80;
-		int pot_z_end = (z_max + OBJECT_ACCESS_PADDING) / 80;
+		int pot_x_start = (x_min - OBJECT_ACCESS_PADDING) / ValTestUnknown;
+		int pot_x_end = (x_max + OBJECT_ACCESS_PADDING) / ValTestUnknown;
+		int pot_z_start = (z_min - OBJECT_ACCESS_PADDING) / ValTestUnknown;
+		int pot_z_end = (z_max + OBJECT_ACCESS_PADDING) / ValTestUnknown;
 
 		if (pot_x_start < 0)
 			pot_x_start = 0;

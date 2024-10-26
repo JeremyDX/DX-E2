@@ -8,6 +8,7 @@
 #include "XWicLoader.h"
 #include "XGameInput.h"
 #include <wrl/client.h>
+#include <cmath>
 #include <cstdint>
 
 static uint16_t max_overlays = 0;
@@ -255,9 +256,8 @@ void ContentLoader::LoadWorldStage()
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/SMILEY512.png", nullptr, &texture_resources[0], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/RGB_TransparencyMap.png", nullptr, &texture_resources[1], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/3_FONT.png", nullptr, &texture_resources[2], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[4], 0);
-	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[5], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/MAP_REGION_LOADING.PNG", nullptr, &texture_resources[4], 0);
 
 	Engine::context->GenerateMips(texture_resources[0]);
 	Engine::context->GenerateMips(texture_resources[1]);
@@ -270,8 +270,8 @@ void ContentLoader::LoadWorldStage()
 		xPos = -96.0f,
 		yPos = 0.00f,
 		zPos = -96.0f,
-		SIZE = 288.f,
-		SIZE_2 = 288.0f;
+		SIZE = 96.f * 4,
+		SIZE_2 = 96.0f;
 
 	MeshVerts[0] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  SIZE_2, SIZE_2 };
 	MeshVerts[1] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.f, SIZE_2};
@@ -284,7 +284,7 @@ void ContentLoader::LoadWorldStage()
 	xPos = 0.0f,
 	yPos = 0.01f,
 	zPos = 0.0f,
-	SIZE = 96.f,
+	SIZE = 19.5f,
 	SIZE_2 = 96.0f;
 
 	Color._1 = CreateShaderColor(0.4f, 1.0f), Color._2 = 0.15F, Color._3 = 0.15F;
@@ -302,15 +302,15 @@ void ContentLoader::LoadWorldStage()
 	XModelMesh::LoadCollisionData();
 	XModelMesh::LoadObjectDefintions();
 
-	XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
+	/*XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
 		0, 100 + (1 * 200) + 80, 182, 100 + (1 * 300) + 80);
-
-	for (int x = 1; x < 48; ++x)
+	*/
+	for (int x = 1; x < 31; ++x)
 	{
-		for (int z = 1; z < 10; ++z)
+		for (int z = 1; z < 31; ++z)
 		{
 			XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
-				0, 100 + (x * 200), 182, 100 + (z * 300));
+				0, x, 8.75f, z);
 		}
 	}
 

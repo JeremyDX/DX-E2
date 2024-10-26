@@ -29,14 +29,14 @@ void BinaryReaderWriter::ReadBinaryData(const char* name, char* &buffer_referenc
 	file.close();
 }
 
-bool BinaryReaderWriter::ReadTextFileIntoBuffer(const char* filename, char*& buffer, int& length)
+bool BinaryReaderWriter::MallocFileDataInBuffer(const char* filename, char*& buffer, int& length)
 {
 	std::ifstream file(filename, std::ios::binary); // Open the file in binary mode
 	if (!file.is_open()) return false;               // Return false if the file cannot be opened
 
 	// Move to the end of the file to determine its size
 	file.seekg(0, std::ios::end);
-	length = file.tellg();                           // Get the file size
+	length = static_cast<int>(file.tellg());         // Get the file size
 	file.seekg(0, std::ios::beg);                   // Move back to the beginning of the file
 
 	buffer = (char*)malloc(length + 1);              // Allocate memory for the buffer

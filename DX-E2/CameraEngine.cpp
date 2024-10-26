@@ -226,7 +226,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 		CameraNeedsUpdate = true;
 	}
 
-	float MPH_SPEED = 3.0f * 0.6667f;
+	float MPH_SPEED = 3.0f / 0.8f;
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{
@@ -259,7 +259,6 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 	if (CameraNeedsUpdate)
 	{
-
 		BuildPrimaryCameraMatrix();
 		CreateFinalMatrixResult();
 	}
@@ -269,8 +268,16 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 void CreateFinalMatrixResult()
 {
+	const float horizontalFOV = 90 * ONE_DEGREE_AS_RADIANS;  // 90 degrees in radians
+
+	// Retrieve the screen aspect ratio from ScreenManagerSystem
+	float aspectRatio = ScreenManagerSystem::GetScreenAspectRatio();
+
+	// Calculate the vertical FOV based on aspect ratio and horizontal FOV
+	float verticalFOV = static_cast<float>(2 * atan(tan(horizontalFOV / 2) / aspectRatio));
+
 	// Create the projection matrix with the calculated vertical FOV
-	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(60 * ONE_DEGREE_AS_RADIANS, ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 300.0F);
+	static const DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(verticalFOV, ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 300.0F);
 
 	// Store the final result
 	DirectX::XMStoreFloat4x4(&CameraEngine::final_result, DirectX::XMLoadFloat4x4(&camera_matrix) * PROJECTION_MATRIX);
@@ -352,7 +359,7 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 	camera_matrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
 	camera_matrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
 
-	const float HeightInMeters = 1.67f;
+	const float HeightInMeters = 1.67f; /// 0.8f;
 
 	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f * HeightInMeters);
 	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f * HeightInMeters);

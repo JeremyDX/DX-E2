@@ -6,7 +6,7 @@ struct BinaryReaderWriter
 {
 	static void ReadBinaryData(const char* name, char* &buffer_reference, int& length);
 
-	static bool ReadTextFileIntoBuffer(const char* FileName, char*& Out_BufferReference, int& Out_Length);
+	static bool MallocFileDataInBuffer(const char* FileName, char*& Out_BufferReference, int& Out_Length);
 
 	static void AddShadersToCache();
 
