@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <dxgi1_4.h>
 
+
 using namespace Microsoft::WRL;
 
 static int ENGINE_ERROR_CODE = 0x0;
@@ -32,9 +33,6 @@ ComPtr<ID3D11VertexShader> vertexshader;
 ComPtr<ID3D11PixelShader> pixelshader;
 ComPtr<ID3D11InputLayout> inputlayout;
 
-ComPtr<ID3D11Buffer> d3d_const_buffer;
-ComPtr<ID3D11Buffer> d2d_const_buffer;
-
 ComPtr<ID3D11Buffer> vertexbuffer;
 
 ComPtr<ID3D11DepthStencilView> zbuffer;
@@ -53,24 +51,11 @@ void CreatePipeline()
 	BinaryCacheLoader::LoadShaders();
 
 	// define and set the constant buffer
-	D3D11_BUFFER_DESC bd = { 0 };
-
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = 64U;
-	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-	constexpr DirectX::XMFLOAT4X4 IDENTITY =
-	{
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1
-	};
-
-	D3D11_SUBRESOURCE_DATA view_srd = { &IDENTITY, 0, 0 };
-
-	Engine::device->CreateBuffer(&bd, nullptr, &d3d_const_buffer);
-	Engine::device->CreateBuffer(&bd, &view_srd, &d2d_const_buffer);
+	D3D11_BUFFER_DESC BufferDescription = { 0 };
+	BufferDescription.Usage = D3D11_USAGE_DEFAULT;
+	BufferDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	BufferDescription.ByteWidth = 16;
+	Engine::device->CreateBuffer(&BufferDescription, nullptr, &BinaryCacheLoader::PerFrameConstBuffer);
 
 	Engine::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
@@ -93,9 +78,10 @@ void PostLevelLoading()
 	Engine::context->VSSetShaderResources(0, 1, Resource3); // Bind height map to slot t0
 	Engine::context->VSSetSamplers(0, 1, &SamplerState);
 
-	Engine::context->UpdateSubresource(d3d_const_buffer.Get(), 0, 0, &CameraEngine::final_result, 0, 0);
+	//CameraEngine::BindConstantBuffers(PerCameraChangeConstBuffer.Get());
 
-	Engine::context->VSSetConstantBuffers(0, 1, d3d_const_buffer.GetAddressOf());
+	Engine::context->VSSetConstantBuffers(0, 1, BinaryCacheLoader::PerFrameConstBuffer.GetAddressOf());
+	Engine::context->PSSetConstantBuffers(0, 1, BinaryCacheLoader::PerFrameConstBuffer.GetAddressOf());
 }
 
 
@@ -167,7 +153,7 @@ void InitializeDirectXProperties(const HWND& hWnd)
 	Engine::context->RSSetViewports(1, &viewport);
 
 	D3D11_RASTERIZER_DESC rd;
-	rd.CullMode = D3D11_CULL_NONE;
+	rd.CullMode = D3D11_CULL_FRONT;
 	rd.FillMode = D3D11_FILL_SOLID;
 	rd.FrontCounterClockwise = TRUE;
 	rd.DepthClipEnable = TRUE;
@@ -249,6 +235,7 @@ void InitializeDirectXProperties(const HWND& hWnd)
 
 	CreatePipeline();
 
+	CameraEngine::PreInitialize();
 	CameraEngine::ResetPrimaryCameraMatrix(90);
 
 	ContentLoader::AllocateVertexBuffers();
@@ -261,6 +248,13 @@ void InitializeDirectXProperties(const HWND& hWnd)
 
 void Update()
 {
+	PerFrameConstantBufferStruct PerFrameData;
+	PerFrameData.DeltaTime = GameTime::GetDeltaElapsedTime();
+	PerFrameData.ElapsedTime = GameTime::GetElapsedRunningTimeInSeconds();
+	PerFrameData.FrameIndex = GameTime::GetAbsoluteFrameTicks();
+	PerFrameData.Unused = 0;
+	Engine::context->UpdateSubresource(BinaryCacheLoader::PerFrameConstBuffer.Get(), 0, 0, &PerFrameData, 0, 0);
+
 	//Handle Updates to Window if we have one open.
 	if (ContentLoader::m_index >= 0)
 	{
@@ -279,8 +273,7 @@ void Update()
 	//Automatic False Return if NO 3D IS IN USE!
 	if (ContentLoader::ALLOW_3D_PROCESSING && CameraEngine::PrimaryCameraUpdatedLookAt())
 	{
-		Engine::context->UpdateSubresource(d3d_const_buffer.Get(), 0, 0, &CameraEngine::final_result, 0, 0);
-		Engine::context->VSSetConstantBuffers(0, 1, d3d_const_buffer.GetAddressOf());
+
 	}
 
 	//Submit Fresh Buffer To GPU.
@@ -292,7 +285,6 @@ UINT offset = 0;
 
 void Render()
 {
-
 	//Set the RenderTarget to the Swapped Buffer So We Can Draw To It!
 	Engine::context->ClearDepthStencilView(zbuffer.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	Engine::context->OMSetRenderTargets(1, rendertarget.GetAddressOf(), zbuffer.Get());
@@ -300,11 +292,14 @@ void Render()
 
 	if (ContentLoader::ALLOW_3D_PROCESSING)
 	{
-		Engine::context->VSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(4));
 
 		BinaryCacheLoader::UseShaders(1, 1);	
 	
+		Engine::context->VSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(0));
+
 		Engine::context->PSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(3));
+		Engine::context->PSSetShaderResources(1, 1, ContentLoader::GetTextureAddress(1));
+
 		Engine::context->PSSetSamplers(0, 1, sampler.GetAddressOf());
 
 		Engine::context->OMSetDepthStencilState(depthonstate.Get(), 0);

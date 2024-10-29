@@ -133,6 +133,10 @@ bool XGameInput::LoadAndProcessXboxInputChanges()
 	// Capture the state of the gamepad before updating it
 	const uint16_t LastGamepadButtons = XboxGamepadState.Gamepad.wButtons;
 
+	XINPUT_CAPABILITIES capabilities;
+
+	XInputGetCapabilities(0, XINPUT_FLAG_GAMEPAD, &capabilities);
+
 	if (XInputGetState(0, &XboxGamepadState) == ERROR_SUCCESS)
 	{
 		const uint16_t CurrentGamepadButtons = XboxGamepadState.Gamepad.wButtons;
@@ -188,6 +192,8 @@ bool XGameInput::LoadAndProcessXboxInputChanges()
 
 		return true;
 	}
+
+	ZeroMemory(&XboxGamepadState, sizeof(XboxGamepadState));
 
 	return false;
 }

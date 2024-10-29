@@ -6,6 +6,9 @@
 #include "Engine.h"
 #include "Constants.h"
 
+Microsoft::WRL::ComPtr<ID3D11Buffer> BinaryCacheLoader::PerFrameConstBuffer;
+Microsoft::WRL::ComPtr<ID3D11Buffer> BinaryCacheLoader::PerCameraChangeConstBuffer;
+
 ID3D11VertexShader** VertexShaders = nullptr;
 ID3D11InputLayout** InputLayouts = nullptr;
 ID3D11PixelShader** PixelShaders = nullptr;

@@ -5,6 +5,7 @@
 class CameraEngine
 {
 	public:
+		static void PreInitialize();
 		static void ResetPrimaryCameraMatrix(const float FACE_DIRECTION);
 		static bool PrimaryCameraUpdatedLookAt();
 		static void GetDebugString(char* Out_Chars, int CharLength);

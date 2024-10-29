@@ -37,7 +37,7 @@ ContentLoader::static_overlay_buffer;
 
 bool ContentLoader::ALLOW_3D_PROCESSING = false;
 
-Vertex32Byte MeshVerts[32768];
+Vertex32Byte MeshVerts[327680*2*16];
 Vertex32Byte InterfaceVerts[4096];
 Vertex32Byte OverlayVerts[2000];
 
@@ -174,7 +174,7 @@ void ContentLoader::AllocateVertexBuffers()
 	bd.MiscFlags = 0;
 	bd.StructureByteStride = 0;
 
-	bd.ByteWidth = sizeof(Vertex32Byte) * 32768;
+	bd.ByteWidth = sizeof(MeshVerts);
 	Engine::device->CreateBuffer(&bd, NULL, static_mesh_buffer.GetAddressOf());
 
 	bd.ByteWidth = sizeof(Vertex32Byte) * 4096;
@@ -253,13 +253,16 @@ void ContentLoader::LoadWorldStage()
 {
 	RestartHeaderSize(0, 1, 1, 5);
 
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/SMILEY512.png", nullptr, &texture_resources[0], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/RGB_TransparencyMap.png", nullptr, &texture_resources[1], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/SMILEY512.png", nullptr, &texture_resources[4], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/NoiseMap.png", nullptr, &texture_resources[1], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/3_FONT.png", nullptr, &texture_resources[2], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/MAP_REGION_LOADING.PNG", nullptr, &texture_resources[4], 0);
+	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
+	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/DirtTexture2.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/15_1024_1024.PNG", nullptr, &texture_resources[0], 0);
 
-	Engine::context->GenerateMips(texture_resources[0]);
+	//Engine::context->GenerateMips(texture_resources[0]);
+	Engine::context->GenerateMips(texture_resources[3]);
 	Engine::context->GenerateMips(texture_resources[1]);
 
 	fonts[0].CreateGlyphMapping(3);
@@ -267,26 +270,35 @@ void ContentLoader::LoadWorldStage()
 	Float3 Color = { CreateShaderColor(0.05f, 1.0f), 0.15f, 0.05f };
 
 	float
-		xPos = -96.0f,
+		xPos = 0.00f,
 		yPos = 0.00f,
-		zPos = -96.0f,
-		SIZE = 96.f * 4,
-		SIZE_2 = 96.0f;
+		zPos = 0.00f,
+		SIZE = 1.0f,
+		SIZE_2 = 1.0f;
 
-	MeshVerts[0] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  SIZE_2, SIZE_2 };
-	MeshVerts[1] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.f, SIZE_2};
-	MeshVerts[2] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
+		int n = 0;
 
-	MeshVerts[3] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
-	MeshVerts[4] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, SIZE_2 };
-	MeshVerts[5] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
+		int regx = 4;
+		int regy = 4;
 
-	xPos = 0.0f,
-	yPos = 0.01f,
-	zPos = 0.0f,
-	SIZE = 19.5f,
-	SIZE_2 = 96.0f;
+		for (int x = 0; x < 256 * regx; ++x)
+		{
+			for (int y = 0; y < 256 * regy; ++y)
+			{
+				xPos = x;
+				zPos = y;
 
+				MeshVerts[n++] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  SIZE_2, SIZE_2 };
+				MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.f, SIZE_2};
+				MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
+
+				MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
+				MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, SIZE_2 };
+				MeshVerts[n++] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
+			}
+		}
+
+/*
 	Color._1 = CreateShaderColor(0.4f, 1.0f), Color._2 = 0.15F, Color._3 = 0.15F;
 
 	MeshVerts[6] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  SIZE_2, SIZE_2 };
@@ -295,9 +307,9 @@ void ContentLoader::LoadWorldStage()
 
 	MeshVerts[9] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
 	MeshVerts[10] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f,   SIZE_2 };
-	MeshVerts[11] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
+	MeshVerts[11] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,	  0.0f, 0.0f };*/
 
-	static_mesh_buffer_size = 11;
+	static_mesh_buffer_size = n;
 
 	XModelMesh::LoadCollisionData();
 	XModelMesh::LoadObjectDefintions();
@@ -305,14 +317,15 @@ void ContentLoader::LoadWorldStage()
 	/*XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
 		0, 100 + (1 * 200) + 80, 182, 100 + (1 * 300) + 80);
 	*/
+	/*
 	for (int x = 1; x < 31; ++x)
 	{
 		for (int z = 1; z < 31; ++z)
 		{
 			XModelMesh::InsertObjectToMap(MeshVerts, static_mesh_buffer_size,
-				0, x, 8.75f, z);
+				0, x, 8.75f * 0.6, z);
 		}
-	}
+	}*/
 
 	Float3 v = { CreateShaderColor(1.0f, 1.0f), 1.0f, 1.0f };
 
