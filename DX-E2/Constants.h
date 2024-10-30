@@ -107,6 +107,7 @@ struct Vertex44Byte
 struct Constants
 {
 	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte20[];
+	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte1[];
 	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte32[];
 	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte44[];
 };
