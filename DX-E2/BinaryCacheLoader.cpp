@@ -23,6 +23,12 @@ void BinaryCacheLoader::LoadShaders()
 		"HeightMapVertexShader.hlsl",
 	};
 
+	__declspec(align(16)) const D3D11_INPUT_ELEMENT_DESC* VertexShaderLayouts[] =
+	{
+		Constants::Layout_Byte32,
+		Constants::Layout_PackedInt
+	};
+
 	const char* PixelShaderFiles[] = {
 		"PixelShader.hlsl",
 		"LandscapePixelShader.hlsl",
@@ -61,8 +67,11 @@ void BinaryCacheLoader::LoadShaders()
 			continue;
 		}
 
+		OutputDebugStringW(L"Created Shader");
+
 		Engine::device->CreateVertexShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), NULL, &VertexShaders[i]);
-		Engine::device->CreateInputLayout(Constants::Layout_Byte32, 3, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &InputLayouts[i]);
+		Engine::device->CreateInputLayout(VertexShaderLayouts[i], 3, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &InputLayouts[i]);
+		//Engine::device->CreateInputLayout(Constants::Layout_PackedInt, 3, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &InputLayouts[i]);
 	}
 
 	for (int i = 0; i < PIXEL_ARRAY_SIZE; ++i)

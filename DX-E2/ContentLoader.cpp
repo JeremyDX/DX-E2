@@ -37,7 +37,7 @@ ContentLoader::static_overlay_buffer;
 
 bool ContentLoader::ALLOW_3D_PROCESSING = false;
 
-Vertex32Byte MeshVerts[327680*2*16];
+VertexPackedInteger MeshVerts[2048 * 1025];
 Vertex32Byte InterfaceVerts[4096];
 Vertex32Byte OverlayVerts[2000];
 
@@ -257,8 +257,8 @@ void ContentLoader::LoadWorldStage()
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/NoiseMap.png", nullptr, &texture_resources[1], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/3_FONT.png", nullptr, &texture_resources[2], 0);
 	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
-	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/DirtTexture2.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
+	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/DirtTexture2.PNG", nullptr, &texture_resources[3], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/15_1024_1024.PNG", nullptr, &texture_resources[0], 0);
 
 	//Engine::context->GenerateMips(texture_resources[0]);
@@ -269,34 +269,78 @@ void ContentLoader::LoadWorldStage()
 
 	Float3 Color = { CreateShaderColor(0.05f, 1.0f), 0.15f, 0.05f };
 
-	float
-		xPos = 0.00f,
-		yPos = 0.00f,
-		zPos = 0.00f,
-		SIZE = 1.0f,
-		SIZE_2 = 1.0f;
 
-		int n = 0;
 
-		int regx = 4;
-		int regy = 4;
+	int SIZE = 1;
 
-		for (int x = 0; x < 256 * regx; ++x)
+	int n = 0;
+
+	//First Quad.
+	MeshVerts[n++] = { (0 + 0) + ((0 + 0) * 2048) };
+	MeshVerts[n++] = { (0 + 0) + ((0 + 1) * 2048) };
+
+	//Loops the Z every 2.
+	for (int z = 0; z < 1024; z+=2)
+	{
+		//Creates the Forward/Back Strips w/ 1 Break.
+		for (int u = 0; u < 1024; u++)
 		{
-			for (int y = 0; y < 256 * regy; ++y)
-			{
-				xPos = x;
-				zPos = y;
-
-				MeshVerts[n++] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  SIZE_2, SIZE_2 };
-				MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.f, SIZE_2};
-				MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
-
-				MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,   SIZE_2, 0.0f };
-				MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, SIZE_2 };
-				MeshVerts[n++] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
-			}
+			MeshVerts[n++] = { (u + 1) + ((z + 0) * 2048) };
+			MeshVerts[n++] = { (u + 1) + ((z + 1) * 2048) };
 		}
+
+		MeshVerts[n++] = { (1023 + 1) + ((z + 2) * 2048) };
+
+		for (int u = 1024; u > 0; --u)
+		{
+			MeshVerts[n++] = { (u - 1) + ((z + 1) * 2048) };
+			MeshVerts[n++] = { (u - 1) + ((z + 2) * 2048) };
+		}
+
+		MeshVerts[n++] = { (0 + 0) + ((z + 3) * 2048) };
+	}
+
+	int junk2 = 0;
+
+/*
+for (int u = 1023; u >= 0; --u)
+{
+	MeshVerts[n++] = { (u + 1) + ((0 + 0) * 2048) };
+	MeshVerts[n++] = { (u + 1) + ((0 + 1) * 2048) };
+}*/
+
+/*
+	for (int x = 0; x < 1024; ++x)
+	{
+		for (int z = 0; z < 1024; ++z)
+		{
+			MeshVerts[n++] = { (x + 0) + ((z + 0) * 2048)};
+			MeshVerts[n++] = { (x + 0) + ((z + SIZE) * 2048)};
+			MeshVerts[n++] = { (x + SIZE) + ((z + 0) * 2048)};
+
+			MeshVerts[n++] = { (x + SIZE) + ((z + 0) * 2048)};
+			MeshVerts[n++] = { (x + 0) + ((z + SIZE) * 2048)};
+			MeshVerts[n++] = { (x + SIZE) + ((z + SIZE) * 2048)};
+*/
+
+/*
+			MeshVerts[n++] = { (xPos + 0.0f) +  ((zPos + 0.0f) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,	  0.0f, 0.0f };
+			MeshVerts[n++] = { (xPos + 0.0f) +  ((zPos + SIZE) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f };
+			MeshVerts[n++] = { (xPos + SIZE) +	((zPos + 0.0f) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,	  0.0f, 0.0f };
+												
+			MeshVerts[n++] = { (xPos + SIZE) +	((zPos + 0.0f) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,	  0.0f, 0.0f };
+			MeshVerts[n++] = { (xPos + 0.0f) +  ((zPos + SIZE) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f };
+			MeshVerts[n++] = { (xPos + SIZE) +	((zPos + SIZE) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f };
+*/
+/*
+			MeshVerts[n++] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
+			MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, 0.0f };
+			MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
+
+			MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
+			MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, 0.0f };
+			MeshVerts[n++] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, 0.0f };
+*/
 
 /*
 	Color._1 = CreateShaderColor(0.4f, 1.0f), Color._2 = 0.15F, Color._3 = 0.15F;
@@ -372,7 +416,7 @@ void ContentLoader::LoadWorldStage()
 	D3D11_MAPPED_SUBRESOURCE resource;
 	ZeroMemory(&resource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	Engine::context->Map(static_mesh_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-	memcpy(resource.pData, &MeshVerts, sizeof(Vertex32Byte) * static_mesh_buffer_size);
+	memcpy(resource.pData, &MeshVerts, sizeof(VertexPackedInteger) * static_mesh_buffer_size);
 	Engine::context->Unmap(static_mesh_buffer.Get(), 0);
 
 	ZeroMemory(&resource, sizeof(D3D11_MAPPED_SUBRESOURCE));

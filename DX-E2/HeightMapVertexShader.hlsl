@@ -24,16 +24,26 @@ struct VOut
 
 //target vs_4_0_level_9_3
 
-VOut main(float4 position : POSITION, float4 color : COLOR, float2 texcoord : TEXCOORD)
+VOut main(int packed_position : PACKED_INTEGER)
 {
 	VOut output;
 
-	output.texcoord.x = 0.00390625 * position.x * 0.25;
-	output.texcoord.y = 0.00390625 * position.z * 0.25;
+	float zPos = floor(packed_position.x / 2048.0f); // Extract Z
+	float xPos = packed_position.x - (zPos * 2048.0f); // Extract X
+
+	// Initialize position as float4
+	float4 position = float4(xPos, 0.0f, zPos, 1.0f);
+
+	output.texcoord.x = (0.00390625 * position.x * 0.25);
+	output.texcoord.y = 1.0f - (0.00390625 * position.z * 0.25);
 
 	float Height = HeightMap.SampleLevel(ss, output.texcoord, 0).r;
 
-	position.y += Height * 100.0f;
+	output.texcoord.x *= 1024.0f;
+	output.texcoord.y *= 1024.0f;
+	
+
+	position.y = 0.0f; //Height * 109.2f;
 
 	output.color.rgba = 1;
 	output.worldPos = position.xyz;

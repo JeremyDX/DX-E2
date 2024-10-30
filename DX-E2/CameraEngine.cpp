@@ -350,7 +350,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 		CameraNeedsUpdate = true;
 	}
 
-	float MPH_SPEED = 10.0f / 0.8f;
+	float MPH_SPEED = 100.0f / 0.8f;
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{

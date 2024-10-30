@@ -26,9 +26,9 @@ cbuffer PerFrameConstants : register(b1)
 };
 
 // Pixel Shader example
-float4 main(float4 position : SV_POSITION, float4 color : COLOR, float2 texcoord : TEXCOORD, float3 worldPos : TEXCOORD1) : SV_TARGET
+float4 main(float4 position : SV_POSITION, float4 color : COLOR, float2 texcoord : TEXCOORD/*, float3 worldPos : TEXCOORD1*/) : SV_TARGET
 {
-
+/*
 	float3 FoVal = CameraForwardVector;
 	FoVal.x *= CameraUpVector.z * 0.5f;
 	FoVal.z *= CameraUpVector.z * 0.5f;
@@ -62,8 +62,9 @@ float4 main(float4 position : SV_POSITION, float4 color : COLOR, float2 texcoord
 	}
 
 	texcoord *= 256;
+*/
 
-	float4 Color2 = 0;
+	float4 ColorA = Texture.Sample(ss, texcoord);
 
-	return Color2;
+	return ColorA;
 }

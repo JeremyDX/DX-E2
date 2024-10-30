@@ -56,8 +56,6 @@ void CreatePipeline()
 	BufferDescription.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	BufferDescription.ByteWidth = 16;
 	Engine::device->CreateBuffer(&BufferDescription, nullptr, &BinaryCacheLoader::PerFrameConstBuffer);
-
-	Engine::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 void PostLevelLoading()
@@ -153,9 +151,9 @@ void InitializeDirectXProperties(const HWND& hWnd)
 	Engine::context->RSSetViewports(1, &viewport);
 
 	D3D11_RASTERIZER_DESC rd;
-	rd.CullMode = D3D11_CULL_FRONT;
+	rd.CullMode = D3D11_CULL_BACK;
 	rd.FillMode = D3D11_FILL_SOLID;
-	rd.FrontCounterClockwise = TRUE;
+	rd.FrontCounterClockwise = false;
 	rd.DepthClipEnable = TRUE;
 	rd.ScissorEnable = FALSE;
 	rd.AntialiasedLineEnable = FALSE;
@@ -293,6 +291,10 @@ void Render()
 	if (ContentLoader::ALLOW_3D_PROCESSING)
 	{
 
+		Engine::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		UINT STRIDE = sizeof(VertexPackedInteger);
+
 		BinaryCacheLoader::UseShaders(1, 1);	
 	
 		Engine::context->VSSetShaderResources(0, 1, ContentLoader::GetTextureAddress(0));
@@ -304,13 +306,15 @@ void Render()
 
 		Engine::context->OMSetDepthStencilState(depthonstate.Get(), 0);
 
-		Engine::context->IASetVertexBuffers(0, 1, ContentLoader::static_mesh_buffer.GetAddressOf(), &stride, &offset);
+		Engine::context->IASetVertexBuffers(0, 1, ContentLoader::static_mesh_buffer.GetAddressOf(), &STRIDE, &offset);
 		Engine::context->Draw(ContentLoader::static_mesh_buffer_size, 0);
 	}
 
 	//Draw 2D.
 	if (ContentLoader::m_index >= 0)
 	{
+		Engine::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 		BinaryCacheLoader::UseShaders(0, 0);
 
 		Engine::context->OMSetDepthStencilState(depthoffstate.Get(), 0);
@@ -341,6 +345,8 @@ void Render()
 
 	if (ContentLoader::s_index >= 0)
 	{
+		Engine::context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 		BinaryCacheLoader::UseShaders(0, 0);
 
 		Engine::context->OMSetDepthStencilState(depthoffstate.Get(), 0);

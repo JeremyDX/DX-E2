@@ -83,6 +83,11 @@ struct Long4
 	int64_t _1, _2, _3, _4;
 };
 
+struct VertexPackedInteger
+{
+	int PackedInteger;
+};
+
 struct Vertex20Byte
 {
 	float _X, _Y, _Z;
@@ -106,6 +111,7 @@ struct Vertex44Byte
 
 struct Constants
 {
+	static const D3D11_INPUT_ELEMENT_DESC Layout_PackedInt[];
 	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte20[];
 	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte1[];
 	static const D3D11_INPUT_ELEMENT_DESC Layout_Byte32[];
