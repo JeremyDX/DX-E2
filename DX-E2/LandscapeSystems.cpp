@@ -2,15 +2,21 @@
 #include "ContentLoader.h"
 #include "Engine.h"
 
-#include <cmath>
+extern "C" float ClampASM(float x);
 
 uint16_t* TerrainHeightData = NULL;
 
-float LandscapeSystems::GetCurrentHeightAtLocation(const float x, const float z)
+float LandscapeSystems::GetCurrentHeightAtLocation(float x, float z)
 {
+    x = ClampASM(x);
+    z = ClampASM(z);
+
     //The grid in question.
     const int GridX = (static_cast<int>(x) & 1023);
     const int GridZ = 1023 - (static_cast<int>(z) & 1023);
+
+    const int GridX2 = (static_cast<int>(x + 1) & 1023);
+    const int GridZ2 = 1023 - (static_cast<int>(z + 1) & 1023);
 
     //The local position we're within the Grid.
     const float LocalX = x - GridX;
@@ -19,19 +25,19 @@ float LandscapeSystems::GetCurrentHeightAtLocation(const float x, const float z)
     if (TerrainHeightData)
     {
         int Grid00 = TerrainHeightData[GridZ * 1024 + GridX];
-        int Grid10 = TerrainHeightData[((GridZ + 1) * 1024) + GridX];
-        int Grid01 = TerrainHeightData[GridZ * 1024 + (GridX + 1)];
-        int Grid11 = TerrainHeightData[((GridZ + 1) * 1024) + (GridX + 1)];
+        int Grid10 = TerrainHeightData[GridZ2 * 1024 + GridX];
+        int Grid01 = TerrainHeightData[GridZ * 1024 + GridX2];
+        int Grid11 = TerrainHeightData[GridZ2 * 1024 + GridX2];
 
-        float z0  = (Grid00 * LocalZ) + (Grid10 * (1 - LocalZ));
-        float z1 = (Grid01 * LocalZ) + (Grid11 * (1 - LocalZ));
+        float z0  = (Grid00 * (1 - LocalZ)) + (Grid10 * LocalZ);
+        float z1 = (Grid01 * (1 - LocalZ)) + (Grid11 * LocalZ);
 
         float z2 = z0 * (1 - LocalX);
         float z3 = z1 * LocalX;
 
         float Height = z2 + z3;
 
-        return static_cast<float>((Height / 65535.0) * 100.2);
+        return static_cast<float>((Height / 65535.0) * 200.2);
     }
 
     return 0;

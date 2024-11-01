@@ -65,7 +65,7 @@ void UpdateCameraMatrixAndShaderResources()
 	float ResultFOV = static_cast<float>(2 * atan(tan(HorizontalFOV / 2) / AspectRatio));
 
 	// Create the projection matrix with the calculated vertical FOV
-	DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(ResultFOV, AspectRatio, 0.1F, 300.0F);
+	DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(ResultFOV, AspectRatio, 0.1F, 3000.0F);
 
 	PerCameraChangeConstBufferStruct PerCameraChangeData = { 0 };
 
@@ -340,7 +340,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 		CameraNeedsUpdate = true;
 	}
 
-	float MPH_SPEED = 5.0f / 0.8f;
+	float MPH_SPEED = 50.0f / 0.8f;
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{

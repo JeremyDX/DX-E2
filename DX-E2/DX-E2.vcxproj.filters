@@ -15,6 +15,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{66530d53-7760-484c-87f6-8ef12235267c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assembly Files">
+      <UniqueIdentifier>{58c5db6d-50ac-4dd6-a885-daf1a6da6bb9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animation.cpp">
@@ -197,5 +200,10 @@
     <FxCompile Include="VertexShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="ASM Files\LandscapeSystemsASM.asm">
+      <Filter>Assembly Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

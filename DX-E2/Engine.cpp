@@ -151,7 +151,7 @@ void InitializeDirectXProperties(const HWND& hWnd)
 	Engine::context->RSSetViewports(1, &viewport);
 
 	D3D11_RASTERIZER_DESC rd;
-	rd.CullMode = D3D11_CULL_NONE;
+	rd.CullMode = D3D11_CULL_BACK;
 	rd.FillMode = D3D11_FILL_SOLID;
 	rd.FrontCounterClockwise = false;
 	rd.DepthClipEnable = TRUE;

@@ -4,7 +4,7 @@ class LandscapeSystems
 {
 	public:
 
-		static float GetCurrentHeightAtLocation(const float X, const float Z);
+		static float GetCurrentHeightAtLocation(float X, float Z);
 
 		static void LoadHeightMapData();
 };

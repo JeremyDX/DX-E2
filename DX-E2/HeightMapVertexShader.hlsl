@@ -43,7 +43,7 @@ VOut main(int packed_position : PACKED_INTEGER)
 	output.texcoord.y *= 1024.0f;
 	
 
-	position.y = Height * 100.2;
+	position.y = Height * 200.2;
 
 	output.color.rgba = 1;
 	output.worldPos = position.xyz;
