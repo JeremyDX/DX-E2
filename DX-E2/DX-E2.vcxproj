@@ -30,6 +30,7 @@
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="FontResource.cpp" />
     <ClCompile Include="GameTime.cpp" />
+    <ClCompile Include="LandscapeSystems.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="ScreenManagerSystem.cpp" />
     <ClCompile Include="TextureResource.cpp" />
@@ -49,6 +50,7 @@
     <ClInclude Include="Engine.h" />
     <ClInclude Include="FontResource.h" />
     <ClInclude Include="GameTime.h" />
+    <ClInclude Include="LandscapeSystems.h" />
     <ClInclude Include="ScreenManagerSystem.h" />
     <ClInclude Include="TextureResource.h" />
     <ClInclude Include="XGameInput.h" />
@@ -59,6 +61,7 @@
     <Image Include="Assets\0_FONT.PNG" />
     <Image Include="Assets\0_UFONT.PNG" />
     <Image Include="Assets\1.png" />
+    <Image Include="Assets\15_1024_1024.png" />
     <Image Include="Assets\1_FONT.PNG" />
     <Image Include="Assets\2.png" />
     <Image Include="Assets\2_FONT.PNG" />
@@ -70,6 +73,7 @@
     <Image Include="Assets\Image_1.png" />
     <Image Include="Assets\Image_2.PNG" />
     <Image Include="Assets\MAP_REGION_LOADING.png" />
+    <Image Include="Assets\NoiseMap.png" />
     <Image Include="Assets\RGB_TransparencyMap.png" />
     <Image Include="Assets\SMILEY512.png" />
     <Image Include="Assets\Wood.png" />

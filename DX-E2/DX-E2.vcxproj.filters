@@ -68,6 +68,9 @@
     <ClCompile Include="BinaryCacheLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LandscapeSystems.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation.h">
@@ -116,6 +119,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="BinaryCacheLoader.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LandscapeSystems.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -169,6 +175,12 @@
       <Filter>Assets</Filter>
     </Image>
     <Image Include="Assets\894x894GridTexture.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\15_1024_1024.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\NoiseMap.png">
       <Filter>Assets</Filter>
     </Image>
   </ItemGroup>

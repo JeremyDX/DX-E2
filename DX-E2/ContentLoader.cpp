@@ -1,5 +1,7 @@
 #include "ContentLoader.h"
+#include "LandscapeSystems.h"
 #include "ScreenManagerSystem.h"
+#include "CameraEngine.h"
 
 #include "Animation.h"
 #include "Engine.h"
@@ -37,7 +39,7 @@ ContentLoader::static_overlay_buffer;
 
 bool ContentLoader::ALLOW_3D_PROCESSING = false;
 
-VertexPackedInteger MeshVerts[2048 * 1025];
+VertexPackedInteger MeshVerts[2098178];
 Vertex32Byte InterfaceVerts[4096];
 Vertex32Byte OverlayVerts[2000];
 
@@ -256,10 +258,15 @@ void ContentLoader::LoadWorldStage()
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/SMILEY512.png", nullptr, &texture_resources[4], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/NoiseMap.png", nullptr, &texture_resources[1], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/3_FONT.png", nullptr, &texture_resources[2], 0);
-	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
+	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
 	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/DirtTexture2.PNG", nullptr, &texture_resources[3], 0);
+
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/15_1024_1024.PNG", nullptr, &texture_resources[0], 0);
+
+	LandscapeSystems::LoadHeightMapData();
+	CameraEngine::PreInitialize();
+	CameraEngine::ResetPrimaryCameraMatrix(90);
 
 	//Engine::context->GenerateMips(texture_resources[0]);
 	Engine::context->GenerateMips(texture_resources[3]);

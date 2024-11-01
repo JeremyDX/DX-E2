@@ -151,7 +151,7 @@ void InitializeDirectXProperties(const HWND& hWnd)
 	Engine::context->RSSetViewports(1, &viewport);
 
 	D3D11_RASTERIZER_DESC rd;
-	rd.CullMode = D3D11_CULL_BACK;
+	rd.CullMode = D3D11_CULL_NONE;
 	rd.FillMode = D3D11_FILL_SOLID;
 	rd.FrontCounterClockwise = false;
 	rd.DepthClipEnable = TRUE;
@@ -233,9 +233,6 @@ void InitializeDirectXProperties(const HWND& hWnd)
 
 	CreatePipeline();
 
-	CameraEngine::PreInitialize();
-	CameraEngine::ResetPrimaryCameraMatrix(90);
-
 	ContentLoader::AllocateVertexBuffers();
 	ContentLoader::LoadContentStage(0); //First Content Batch.
 	PostLevelLoading();
@@ -269,9 +266,9 @@ void Update()
 	//Update 3D Camera World Space Context.
 	//Process Incoming Camera Change Data.
 	//Automatic False Return if NO 3D IS IN USE!
-	if (ContentLoader::ALLOW_3D_PROCESSING && CameraEngine::PrimaryCameraUpdatedLookAt())
+	if (ContentLoader::ALLOW_3D_PROCESSING)
 	{
-
+		CameraEngine::PrimaryCameraUpdatedLookAt();
 	}
 
 	//Submit Fresh Buffer To GPU.
@@ -406,44 +403,13 @@ void Engine::Stop()
 	KEEP_LOOPING = false;
 }
 
-void Engine::Reset()
-{
-	IDXGIDevice* dxgiDevice = nullptr;
-	IDXGIAdapter* dxgiAdapter = nullptr;
-
-	// Get the DXGI device from the D3D11 device
-	if (SUCCEEDED(device->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxgiDevice))) {
-		// Get the adapter
-		if (SUCCEEDED(dxgiDevice->GetAdapter(&dxgiAdapter))) {
-			DXGI_ADAPTER_DESC desc;
-			dxgiAdapter->GetDesc(&desc);
-
-			// Output memory information
-			WCHAR buffer[256];
-			swprintf_s(buffer, sizeof(buffer) / sizeof(WCHAR),
-				L"Adapter Description: %s\n"
-				L"Dedicated Video Memory: %llu MB\n"
-				L"Dedicated System Memory: %llu MB\n"
-				L"Shared System Memory: %llu MB\n",
-				desc.Description,
-				desc.DedicatedVideoMemory / (1024 * 1024),
-				desc.DedicatedSystemMemory / (1024 * 1024),
-				desc.SharedSystemMemory / (1024 * 1024));
-			OutputDebugStringW(buffer);
-
-			// Clean up
-			dxgiAdapter->Release();
-		}
-		dxgiDevice->Release();
-	}
-}
-
 void ClearResources()
 {
+	/*
 	ComPtr<ID3D11Debug> debugInterface;
 	if (SUCCEEDED(Engine::device.As(&debugInterface))) {
 		debugInterface->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
-	}
+	}*/
 }
 
 //Only To Be Called Once. Secondary Call Will Kill Execution and End Program.
@@ -491,6 +457,7 @@ int Engine::StartGameLoop(void* vRawHWNDPtr)
 			SetWindowTextA(hWnd, Message);
 		}
 	}
+
 	ClearResources();
 
 	return 0;

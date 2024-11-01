@@ -25,7 +25,7 @@ void ProcessMenuButtons(void)
 {
 	ContentWindow& cw = ContentLoader::GetCurrentWindow();
 	cw.children();
-	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::SELECTION_CONFIRM_BUTTON))
+	if (XGameInput::ActionWasInitiated(DirectButtonActionsEnum::SELECTION_CONFIRM_BUTTON))
 	{
 		switch (cw.menu_index)
 		{
@@ -56,7 +56,7 @@ void MenuUpdateDownUp(void)
 void MenuUpdateLeftRight(void)
 {
 	ContentWindow& cw = ContentLoader::GetCurrentWindow();
-	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::CHANGE_SELECTION_PREVIOUS))
+	if (XGameInput::ActionWasInitiated(DirectButtonActionsEnum::CHANGE_SELECTION_PREVIOUS))
 	{
 		int oldPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		--cw.menu_index;
@@ -65,7 +65,7 @@ void MenuUpdateLeftRight(void)
 		int newPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		ContentLoader::SwapQuadsPosition(oldPosition, newPosition);
 	}
-	else if (XGameInput::ActionWasInitiated(GameInputActionsEnum::CHANGE_SELECTION_NEXT))
+	else if (XGameInput::ActionWasInitiated(DirectButtonActionsEnum::CHANGE_SELECTION_NEXT))
 	{
 		int oldPosition = cw.state_vertex_offsets[1] + cw.menu_index * 6;
 		++cw.menu_index;

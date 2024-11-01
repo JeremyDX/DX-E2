@@ -9,6 +9,8 @@
 #include "XGameInput.h"
 #include "XModelMesh.h"
 #include "BinaryCacheLoader.h"
+#include "LandscapeSystems.h"
+
 #include <cstdio>
 #include <DirectXMath.h>
 
@@ -58,16 +60,12 @@ void CameraEngine::PreInitialize()
 
 void UpdateCameraMatrixAndShaderResources()
 {
-	const float horizontalFOV = CurrentFov * ONE_DEGREE_AS_RADIANS;  // 90 degrees in radians
-
-	// Retrieve the screen aspect ratio from ScreenManagerSystem
-	float aspectRatio = ScreenManagerSystem::GetScreenAspectRatio();
-
-	// Calculate the vertical FOV based on aspect ratio and horizontal FOV
-	float verticalFOV = static_cast<float>(2 * atan(tan(horizontalFOV / 2) / aspectRatio));
+	const float HorizontalFOV = CurrentFov * ONE_DEGREE_AS_RADIANS;  // 90 degrees in radians
+	float AspectRatio = ScreenManagerSystem::GetScreenAspectRatio();
+	float ResultFOV = static_cast<float>(2 * atan(tan(HorizontalFOV / 2) / AspectRatio));
 
 	// Create the projection matrix with the calculated vertical FOV
-	DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(verticalFOV, ScreenManagerSystem::GetScreenAspectRatio(), 0.1F, 3000.0F);
+	DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(ResultFOV, AspectRatio, 0.1F, 300.0F);
 
 	PerCameraChangeConstBufferStruct PerCameraChangeData = { 0 };
 
@@ -176,11 +174,13 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 	ViewMatrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
 	ViewMatrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
 
-	//HeightInMeters = 1.67f; /// 0.8f;
+	float GroundHeight = LandscapeSystems::GetCurrentHeightAtLocation(CameraPosition.X, CameraPosition.Z);
+
+	float HeightInMeters = 1.67f;
 
 	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f * HeightInMeters);
 	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f * HeightInMeters);
-	const float CameraHeight = CameraPosition.Y + HeightInMeters;
+	const float CameraHeight = CameraPosition.Y + GroundHeight + HeightInMeters;
 
 	//Dot Product (Position, Right Vector).
 	ViewMatrix._41 = -(CameraXOffset * ViewMatrix._11 + CameraHeight * ViewMatrix._21 + CameraZOffset * ViewMatrix._31);
@@ -246,33 +246,23 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 	//Time Slice from 0.0f to 0.0167 in event we're running slow. This is to prevent using Lag as a movement exploit and requires steady Target FPS amount.
 	const float DeltaFrame = min(GameTime::GetDeltaElapsedTime(), GameTime::GetFrameTickLimit());
 
-	//Get Controller Strength's For Camera Movement & Camera Turning., Ranges from 0 (0%) to 32000 (100%)
-	float CameraRightStrength = static_cast<float>(XGameInput::GetLeftStickX());
-	float CameraForwardStrength = static_cast<float>(XGameInput::GetLeftStickY());
+	//Get Controller Strength's / WASD For Camera Movement, Ranges from 0 (0%) to 32000 (100%)
+	float CameraRightStrength = static_cast<float>(XGameInput::GetRightMovementStrength());
+	float CameraForwardStrength = static_cast<float>(XGameInput::GetForwardMovementStrength());
+
+	//Get Controller Strengths / Mouse Changes For Turning. 
 	float CameraTurnStrength = static_cast<float>(XGameInput::GetRightStickX());
 	float CameraLookStrength = static_cast<float>(XGameInput::GetRightStickY());
 
 	bool CameraNeedsUpdate = false;
 
-	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::CHANGE_TAB_PREVIOUS))
-	{
-		CameraNeedsUpdate = true;
-			CurrentFov -= 5.0f;
-	}
-
-	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::CHANGE_TAB_NEXT))
-	{
-		CameraNeedsUpdate = true;
-		CurrentFov += 5.0f;
-	}
-
-	if (XGameInput::ActionWasInitiated(GameInputActionsEnum::HOLD_LOOK))
+	if (XGameInput::ActionWasInitiated(DirectButtonActionsEnum::HOLD_LOOK))
 	{
 		CameraYawSnapshot = CameraYaw;
 		CameraYawReturnRate = 0.0f;
 	}
 
-	if (XGameInput::ActionHasEnded(GameInputActionsEnum::HOLD_LOOK))
+	if (XGameInput::ActionHasEnded(DirectButtonActionsEnum::HOLD_LOOK))
 	{
 		CameraYawReturnRate = (CameraYawSnapshot - CameraYaw) / 2.0f;
 	}
@@ -285,7 +275,7 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 
 		CameraYaw += TurnCalculation;
 
-		if (XGameInput::ActionIsCurrentlyActive(GameInputActionsEnum::HOLD_LOOK))
+		if (XGameInput::ActionIsCurrentlyActive(DirectButtonActionsEnum::HOLD_LOOK))
 		{
 			if (CameraYaw > CameraYawSnapshot)
 			{
@@ -350,11 +340,11 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 		CameraNeedsUpdate = true;
 	}
 
-	float MPH_SPEED = 100.0f / 0.8f;
+	float MPH_SPEED = 5.0f / 0.8f;
 
 	if (CanSmoothAndNormalizeJoystickValue(CameraForwardStrength, DeltaFrame))
 	{
-		if (XGameInput::ActionWasInitiated(GameInputActionsEnum::SPRINT))
+		if (XGameInput::ActionWasInitiated(DirectButtonActionsEnum::SPRINT))
 		{
 			bIsSprinting = !bIsSprinting;
 		}
@@ -381,13 +371,13 @@ bool CameraEngine::PrimaryCameraUpdatedLookAt()
 		CameraNeedsUpdate = true;
 	}
 
-	if (XGameInput::ActionIsCurrentlyActive(GameInputActionsEnum::JUMPING))
+	if (XGameInput::ActionIsCurrentlyActive(DirectButtonActionsEnum::JUMPING))
 	{
 		HeightInMeters += DeltaFrame * 5.0f;
 		CameraNeedsUpdate = true;
 	}
 
-	if (XGameInput::ActionIsCurrentlyActive(GameInputActionsEnum::CROUCHING))
+	if (XGameInput::ActionIsCurrentlyActive(DirectButtonActionsEnum::CROUCHING))
 	{
 		HeightInMeters -= DeltaFrame * 5.0f;
 		CameraNeedsUpdate = true;

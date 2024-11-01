@@ -30,8 +30,26 @@ enum XboxControllerButtonIndexes : uint8_t
 	Y_BUTTON
 };
 
+enum class VariableActionMappingEnum : uint8_t
+{
+	MOVE_FORWARDS,
+	MOVE_BACKWARDS,
+	MOVE_RIGHT,
+	MOVE_LEFT,
+
+	MAX
+};
+
+enum class VariableInputStrengthsEnum : uint8_t
+{
+	MOVE_ON_FORWARD_VECTOR,
+	MOVE_ON_RIGHT_VECTOR,
+
+	MAX
+};
+
 //From here onward these have 1:1 mapping with Controller, Keyboard, Mouse buttons.
-enum class GameInputActionsEnum : uint8_t
+enum class DirectButtonActionsEnum : uint8_t
 {
 	//Toggle/Hold Actions
 	SPRINT,
@@ -69,15 +87,15 @@ class XGameInput
 		static void GameInputPostProcessing();
 		static void StoreRawInputStateChanges(RAWINPUT* &RawInput);
 
-		static int16_t GetLeftStickX();
-		static int16_t GetLeftStickY();
+		static int16_t GetRightMovementStrength();
+		static int16_t GetForwardMovementStrength();
 		static int16_t GetRightStickX();
 		static int16_t GetRightStickY();
 
 		//Toggle/Hold style'd Actions are accessed here.
-		static bool ActionWasInitiated(GameInputActionsEnum Action);
-		static bool ActionIsCurrentlyActive(GameInputActionsEnum Action);
-		static bool ActionHasEnded(GameInputActionsEnum Action);
+		static bool ActionWasInitiated(DirectButtonActionsEnum Action);
+		static bool ActionIsCurrentlyActive(DirectButtonActionsEnum Action);
+		static bool ActionHasEnded(DirectButtonActionsEnum Action);
 
 		static bool HasFlagSettings(const uint8_t FlagSettings);
 
