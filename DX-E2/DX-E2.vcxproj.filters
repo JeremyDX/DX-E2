@@ -202,7 +202,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="ASM Files\LandscapeSystemsASM.asm">
+    <MASM Include="ASM Files\MathASM.asm">
       <Filter>Assembly Files</Filter>
     </MASM>
   </ItemGroup>

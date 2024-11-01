@@ -121,7 +121,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="ASM Files\LandscapeSystemsASM.asm" />
+    <MASM Include="ASM Files\MathASM.asm" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

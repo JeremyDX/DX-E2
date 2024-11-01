@@ -2,14 +2,14 @@
 #include "ContentLoader.h"
 #include "Engine.h"
 
-extern "C" float ClampASM(float x);
+extern "C" float ClampASM(float x, float max);
 
 uint16_t* TerrainHeightData = NULL;
 
 float LandscapeSystems::GetCurrentHeightAtLocation(float x, float z)
 {
-    x = ClampASM(x);
-    z = ClampASM(z);
+    x = ClampASM(x, 1023.0f);
+    z = ClampASM(z, 1023.0f);
 
     //The grid in question.
     const int GridX = (static_cast<int>(x) & 1023);
