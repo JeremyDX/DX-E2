@@ -186,6 +186,9 @@
     <Image Include="Assets\NoiseMap.png">
       <Filter>Assets</Filter>
     </Image>
+    <Image Include="Assets\DirtGrass.png">
+      <Filter>Assets</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">

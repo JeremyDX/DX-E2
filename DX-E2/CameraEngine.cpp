@@ -65,7 +65,7 @@ void UpdateCameraMatrixAndShaderResources()
 	float ResultFOV = static_cast<float>(2 * atan(tan(HorizontalFOV / 2) / AspectRatio));
 
 	// Create the projection matrix with the calculated vertical FOV
-	DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(ResultFOV, AspectRatio, 0.1F, 3000.0F);
+	DirectX::XMMATRIX PROJECTION_MATRIX = DirectX::XMMatrixPerspectiveFovLH(ResultFOV, AspectRatio, 0.001F, 3000.0F);
 
 	PerCameraChangeConstBufferStruct PerCameraChangeData = { 0 };
 
@@ -174,12 +174,13 @@ void CameraEngine::BuildPrimaryCameraMatrix()
 	ViewMatrix._23 = -CameraUpVector.X;              //Inverse of Sin(Look)
 	ViewMatrix._33 = CameraUpVector.Z * CameraForwardVector.Z; //Cos(Look) * Cos(Turn)
 
-	float GroundHeight = LandscapeSystems::GetCurrentHeightAtLocation(CameraPosition.X, CameraPosition.Z);
+	float GroundHeight = LandscapeSystems::GetCurrentHeightAtLocation(CameraPosition.X + CameraForwardVector.X * 0.0f, CameraPosition.Z + CameraForwardVector.Z * 0.0f);
 
 	float HeightInMeters = 1.67f;
 
 	const float CameraXOffset = (CameraPosition.X + CameraForwardVector.X * 0.5f * HeightInMeters);
 	const float CameraZOffset = (CameraPosition.Z + CameraForwardVector.Z * 0.5f * HeightInMeters);
+
 	const float CameraHeight = CameraPosition.Y + GroundHeight + HeightInMeters;
 
 	//Dot Product (Position, Right Vector).

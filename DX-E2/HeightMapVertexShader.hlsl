@@ -34,18 +34,37 @@ VOut main(int packed_position : PACKED_INTEGER)
 	// Initialize position as float4
 	float4 position = float4(xPos, 0.0f, zPos, 1.0f);
 
-	output.texcoord.x = (0.00390625 * position.x * 0.25);
-	output.texcoord.y = 1.0f - (0.00390625 * position.z * 0.25);
+	output.texcoord.x = (0.0009765625 * position.x);
+	output.texcoord.y = 1.0f - (0.0009765625 * position.z);
 
 	float Height = HeightMap.SampleLevel(ss, output.texcoord, 0).r;
 
 	output.texcoord.x *= 1024.0f;
 	output.texcoord.y *= 1024.0f;
-	
 
-	position.y = Height * 200.2;
+	int intValue = (int)floor(xPos);
+	int intValue2 = (int)floor(zPos);
+	float3 color;
 
-	output.color.rgba = 1;
+	color = float3(0.0f, 0.0f, 1.0f);
+
+/*
+	if (intValue == 0) {
+		color = float3(1.0f, 0.0f, 0.0f);
+	}
+	if (intValue2 == 0) {
+		color = float3(1.0f, 0.0f, 0.0f);
+	}
+	if (intValue == 1024) {
+		color = float3(1.0f, 0.0f, 0.0f);
+	}
+	if (intValue2 == 1024) {
+		color = float3(1.0f, 0.0f, 0.0f);
+	}*/
+
+	output.color.rgb = color;
+
+	position.y = Height * 50.2;
 	output.worldPos = position.xyz;
 	output.position = mul(view_matrix, position);
 

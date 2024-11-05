@@ -3,6 +3,8 @@
 #include "Engine.h"
 
 extern "C" float ClampASM(float x, float max);
+extern "C" int MaxBetween4IntsASM(int a, int b, int c, int d);
+extern "C" int MinBetween4IntsASM(int a, int b, int c, int d);
 
 uint16_t* TerrainHeightData = NULL;
 
@@ -35,9 +37,12 @@ float LandscapeSystems::GetCurrentHeightAtLocation(float x, float z)
         float z2 = z0 * (1 - LocalX);
         float z3 = z1 * LocalX;
 
+        float SlopeX = static_cast<float>((Grid11 + Grid10) - (Grid01 + Grid00));
+        float SlopeZ = static_cast<float>((Grid11 + Grid01) - (Grid10 + Grid00));
+
         float Height = z2 + z3;
 
-        return static_cast<float>((Height / 65535.0) * 200.2);
+        return static_cast<float>((Height / 65535.0) * 50.2);
     }
 
     return 0;

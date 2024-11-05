@@ -38,8 +38,8 @@ ContentLoader::static_mesh_buffer,
 ContentLoader::static_overlay_buffer;
 
 bool ContentLoader::ALLOW_3D_PROCESSING = false;
-
-VertexPackedInteger MeshVerts[2098178];
+ 
+VertexPackedInteger* MeshVerts; //2100223
 Vertex32Byte InterfaceVerts[4096];
 Vertex32Byte OverlayVerts[2000];
 
@@ -176,9 +176,6 @@ void ContentLoader::AllocateVertexBuffers()
 	bd.MiscFlags = 0;
 	bd.StructureByteStride = 0;
 
-	bd.ByteWidth = sizeof(MeshVerts);
-	Engine::device->CreateBuffer(&bd, NULL, static_mesh_buffer.GetAddressOf());
-
 	bd.ByteWidth = sizeof(Vertex32Byte) * 4096;
 	Engine::device->CreateBuffer(&bd, NULL, static_interfaces_buffer.GetAddressOf());
 
@@ -258,9 +255,9 @@ void ContentLoader::LoadWorldStage()
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/SMILEY512.png", nullptr, &texture_resources[4], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/NoiseMap.png", nullptr, &texture_resources[1], 0);
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/3_FONT.png", nullptr, &texture_resources[2], 0);
-	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
+	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/894x894GridTexture.PNG", nullptr, &texture_resources[3], 0);
 	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/FloorTiles.PNG", nullptr, &texture_resources[3], 0);
-	//CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/DirtTexture2.PNG", nullptr, &texture_resources[3], 0);
+	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/DirtGrass.PNG", nullptr, &texture_resources[3], 0);
 
 	CreateWICTextureFromFile(Engine::device.Get(), Engine::context.Get(), L"Assets/15_1024_1024.PNG", nullptr, &texture_resources[0], 0);
 
@@ -282,72 +279,45 @@ void ContentLoader::LoadWorldStage()
 
 	int n = 0;
 
+	//int x = 0;
+	//int z = 0;
+
 	//First Quad.
-	MeshVerts[n++] = { (0 + 0) + ((0 + 0) * 2048) };
-	MeshVerts[n++] = { (0 + 0) + ((0 + 1) * 2048) };
 
-	//Loops the Z every 2.
-	for (int z = 0; z < 1024; z+=2)
+constexpr int GRID_SIZE = 1024;
+constexpr int ROW_STRIDE = 2048; //GRID_SIZE << 1;
+constexpr int ROW_LIMIT = GRID_SIZE - 2;
+constexpr int STORAGE_CAPACITY = ((GRID_SIZE + 1) * 4) * (GRID_SIZE >> 1) + GRID_SIZE;
+
+MeshVerts = new VertexPackedInteger[STORAGE_CAPACITY];
+
+for (int z = 0; z <= ROW_LIMIT; z+=2)
+{
+	for (int x = 0; x <= GRID_SIZE; ++x)
 	{
-		//Creates the Forward/Back Strips w/ 1 Break.
-		for (int u = 0; u < 1024; u++)
-		{
-			MeshVerts[n++] = { (u + 1) + ((z + 0) * 2048) };
-			MeshVerts[n++] = { (u + 1) + ((z + 1) * 2048) };
-		}
-
-		MeshVerts[n++] = { (1023 + 1) + ((z + 2) * 2048) };
-
-		for (int u = 1024; u > 0; --u)
-		{
-			MeshVerts[n++] = { (u - 1) + ((z + 1) * 2048) };
-			MeshVerts[n++] = { (u - 1) + ((z + 2) * 2048) };
-		}
-
-		MeshVerts[n++] = { (0 + 0) + ((z + 3) * 2048) };
+		MeshVerts[n++] = { (x + 0) + ((z + 0) * ROW_STRIDE) };
+		MeshVerts[n++] = { (x + 0) + ((z + 1) * ROW_STRIDE) };
 	}
 
-	int junk2 = 0;
+	MeshVerts[n++] = { (GRID_SIZE) + ((z + 2) * ROW_STRIDE) };
 
-/*
-for (int u = 1023; u >= 0; --u)
-{
-	MeshVerts[n++] = { (u + 1) + ((0 + 0) * 2048) };
-	MeshVerts[n++] = { (u + 1) + ((0 + 1) * 2048) };
-}*/
-
-/*
-	for (int x = 0; x < 1024; ++x)
+	for (int x = GRID_SIZE; x >= 0; --x)
 	{
-		for (int z = 0; z < 1024; ++z)
-		{
-			MeshVerts[n++] = { (x + 0) + ((z + 0) * 2048)};
-			MeshVerts[n++] = { (x + 0) + ((z + SIZE) * 2048)};
-			MeshVerts[n++] = { (x + SIZE) + ((z + 0) * 2048)};
+		MeshVerts[n++] = { (x + 0) + ((z + 1) * ROW_STRIDE) };
+		MeshVerts[n++] = { (x + 0) + ((z + 2) * ROW_STRIDE) };
+	}
 
-			MeshVerts[n++] = { (x + SIZE) + ((z + 0) * 2048)};
-			MeshVerts[n++] = { (x + 0) + ((z + SIZE) * 2048)};
-			MeshVerts[n++] = { (x + SIZE) + ((z + SIZE) * 2048)};
-*/
+	if (z < ROW_LIMIT)
+	{
+		MeshVerts[n++] = { (0) + ((z + 3) * ROW_STRIDE) };
+	}
+}
 
-/*
-			MeshVerts[n++] = { (xPos + 0.0f) +  ((zPos + 0.0f) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,	  0.0f, 0.0f };
-			MeshVerts[n++] = { (xPos + 0.0f) +  ((zPos + SIZE) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f };
-			MeshVerts[n++] = { (xPos + SIZE) +	((zPos + 0.0f) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,	  0.0f, 0.0f };
-												
-			MeshVerts[n++] = { (xPos + SIZE) +	((zPos + 0.0f) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,	  0.0f, 0.0f };
-			MeshVerts[n++] = { (xPos + 0.0f) +  ((zPos + SIZE) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f };
-			MeshVerts[n++] = { (xPos + SIZE) +	((zPos + SIZE) * 2048.0f)		, 0.0f , 0.0f			, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f };
-*/
-/*
-			MeshVerts[n++] = { xPos			, yPos , zPos			, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
-			MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, 0.0f };
-			MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
-
-			MeshVerts[n++] = { xPos + SIZE	, yPos , zPos			, Color._1, Color._2, Color._3,	  0.0f, 0.0f };
-			MeshVerts[n++] = { xPos			, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, 0.0f };
-			MeshVerts[n++] = { xPos + SIZE	, yPos , zPos + SIZE	, Color._1, Color._2, Color._3,   0.0f, 0.0f };
-*/
+if (n > STORAGE_CAPACITY)
+{
+	int junk2 = 0;
+	return;
+}
 
 /*
 	Color._1 = CreateShaderColor(0.4f, 1.0f), Color._2 = 0.15F, Color._3 = 0.15F;
@@ -419,11 +389,21 @@ for (int u = 1023; u >= 0; --u)
 	v = { CreateShaderColor(1.0f, 0.9f), 1.0f, 1.0f }; //Blocking Box.
 	static_overlay_buffer_size = XModelMesh::CreateTexturedSquare(OverlayVerts, static_overlay_buffer_size, v, 1, 1, 500, 500);
 
+	D3D11_BUFFER_DESC bd = { 0 };
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	bd.MiscFlags = 0;
+	bd.StructureByteStride = 0;
+
+	bd.ByteWidth = sizeof(VertexPackedInteger) * static_mesh_buffer_size;
+	Engine::device->CreateBuffer(&bd, NULL, static_mesh_buffer.GetAddressOf());
+
 
 	D3D11_MAPPED_SUBRESOURCE resource;
 	ZeroMemory(&resource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	Engine::context->Map(static_mesh_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-	memcpy(resource.pData, &MeshVerts, sizeof(VertexPackedInteger) * static_mesh_buffer_size);
+	memcpy(resource.pData, MeshVerts, sizeof(VertexPackedInteger) * static_mesh_buffer_size);
 	Engine::context->Unmap(static_mesh_buffer.Get(), 0);
 
 	ZeroMemory(&resource, sizeof(D3D11_MAPPED_SUBRESOURCE));
