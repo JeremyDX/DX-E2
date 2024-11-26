@@ -9,18 +9,9 @@ cbuffer PerFrameConstants : register(b0)
 	float UNUSED;
 };
 
-cbuffer PerFrameConstants : register(b1)
+cbuffer CameraViewMatrix : register(b1)
 {
-	float4x4 ViewProjectionMatrix;
-	float4x4 InverseViewProjectionMatrix;
-	float3 CameraPosition;
-	float CameraYaw;
-	float3 CameraForwardVector;
-	float CameraPitch;
-	float3 CameraRightVector;
-	float CameraRoll;
-	float3 CameraUpVector;
-	float UNUSED2;
+	float4x4 view_matrix;
 };
 
 struct VOut
@@ -43,47 +34,36 @@ VOut main(int packed_position : PACKED_INTEGER)
 	// Initialize position as float4
 	float4 position = float4(xPos, 0.0f, zPos, 1.0f);
 
-	position.x += (int)CameraPosition.x;
-	position.z += (int)CameraPosition.z;
-
 	output.texcoord.x = (0.0009765625 * position.x);
 	output.texcoord.y = 1.0f - (0.0009765625 * position.z);
 
-	saturate(output.texcoord);
-
 	float Height = HeightMap.SampleLevel(ss, output.texcoord, 0).r;
 
-	output.texcoord.x *= 256.0f * 16;
-	output.texcoord.y *= 256.0f * 16;
+	output.texcoord.x *= 1024.0f;
+	output.texcoord.y *= 1024.0f;
 
 	int intValue = (int)floor(xPos);
 	int intValue2 = (int)floor(zPos);
-	float3 color;
 
-	color = float3(0.0f, 0.0f, 1.0f);
+	/*
+		if (intValue == 0) {
+			color = float3(1.0f, 0.0f, 0.0f);
+		}
+		if (intValue2 == 0) {
+			color = float3(1.0f, 0.0f, 0.0f);
+		}
+		if (intValue == 1024) {
+			color = float3(1.0f, 0.0f, 0.0f);
+		}
+		if (intValue2 == 1024) {
+			color = float3(1.0f, 0.0f, 0.0f);
+		}*/
 
-/*
-	if (intValue == 0) {
-		color = float3(1.0f, 0.0f, 0.0f);
-	}
-	if (intValue2 == 0) {
-		color = float3(1.0f, 0.0f, 0.0f);
-	}
-	if (intValue == 1024) {
-		color = float3(1.0f, 0.0f, 0.0f);
-	}
-	if (intValue2 == 1024) {
-		color = float3(1.0f, 0.0f, 0.0f);
-	}*/
-
-	output.color.rgb = color;
-
-	position.y = Height * 50.2;
-	position.x -= 512;
-	position.z -= 512;
-
+	
+	position.y = cos(ElapsedTime * position.x) + 10;
+	output.color.a = frac(ElapsedTime * position.x * 0.1f);
 	output.worldPos = position.xyz;
-	output.position = mul(ViewProjectionMatrix, position);
+	output.position = mul(view_matrix, position);
 
 	return output;
 }

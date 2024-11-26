@@ -10,8 +10,8 @@ uint16_t* TerrainHeightData = NULL;
 
 float LandscapeSystems::GetCurrentHeightAtLocation(float x, float z)
 {
-    x = ClampASM(x, 1023.0f);
-    z = ClampASM(z, 1023.0f);
+    x = ClampASM(x + 512, 1023.0f);
+    z = ClampASM(z + 512, 1023.0f);
 
     //The grid in question.
     const int GridX = (static_cast<int>(x) & 1023);

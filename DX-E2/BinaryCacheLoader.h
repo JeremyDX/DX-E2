@@ -5,6 +5,14 @@
 #include <d3d11.h>
 #include "Constants.h"
 
+const enum ShaderEnumTypes : uint8_t
+{
+	MAIN_UI,
+	TERRAIN_HEIGHT_TEST1,
+	WATER_TEST1,
+	TERRAIN_REGION_TEST1
+};
+
 struct PerFrameConstantBufferStruct
 {
 	float DeltaTime;
@@ -25,16 +33,6 @@ struct PerCameraChangeConstBufferStruct
 	float Roll;
 	Vector3D CameraUpVector;
 	float UNUSED;
-};
-
-struct VertexShaderCache
-{
-
-};
-
-struct PixelShaderCache
-{
-
 };
 
 class BinaryCacheLoader

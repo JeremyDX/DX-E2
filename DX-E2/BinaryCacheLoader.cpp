@@ -13,49 +13,39 @@ ID3D11VertexShader** VertexShaders = nullptr;
 ID3D11InputLayout** InputLayouts = nullptr;
 ID3D11PixelShader** PixelShaders = nullptr;
 
+struct ShaderFileStorage
+{
+	const char* VertexShaderName;
+	const char* PixelShaderName;
+	uint8_t ElementSize;
+	const D3D11_INPUT_ELEMENT_DESC* LayoutType;
+};
+
 void BinaryCacheLoader::LoadShaders()
 {
 	bool Failed = false;
 
-	const char* VertexShaderFiles[] = 
-	{
-		"VertexShader.hlsl",
-		"HeightMapVertexShader.hlsl",
-	};
+	ShaderFileStorage ShaderFiles[4];
 
-	const D3D11_INPUT_ELEMENT_DESC* VertexShaderLayouts[] =
-	{
-		Constants::Layout_Byte32,
-		Constants::Layout_PackedInt
-	};
+	ShaderFiles[static_cast<int>(ShaderEnumTypes::MAIN_UI)]					= { "VertexShader.hlsl",			 "PixelShader.hlsl",			 3,	Constants::Layout_Byte32	};
+	ShaderFiles[static_cast<int>(ShaderEnumTypes::TERRAIN_HEIGHT_TEST1)]	= { "HeightMapVertexShader.hlsl",	 "HeightMapPixelShader.hlsl",	 1,	Constants::Layout_PackedInt	};
+	ShaderFiles[static_cast<int>(ShaderEnumTypes::WATER_TEST1)]				= { "WaterVertexShader.hlsl",		 "WaterPixelShader.hlsl",		 1,	Constants::Layout_PackedInt	};
+	ShaderFiles[static_cast<int>(ShaderEnumTypes::TERRAIN_REGION_TEST1)]	= { "LandscapeVertexLodShader.hlsl", "LandscapePixelLodShader.hlsl", 1,	Constants::Layout_PackedInt	};
 
-	const uint8_t InputLayoutElementSizes[] =
-	{
-		3, 
-		1,
-	};
-
-	const char* PixelShaderFiles[] = {
-		"PixelShader.hlsl",
-		"LandscapePixelShader.hlsl",
-	};
-
-	constexpr int VERTEX_ARRAY_SIZE = sizeof(VertexShaderFiles) / sizeof(char*);
-	constexpr int PIXEL_ARRAY_SIZE = sizeof(PixelShaderFiles) / sizeof(char*);
+	constexpr int SHADER_SIZE = sizeof(ShaderFiles) / sizeof(ShaderFiles[0]);
 
 	char* ShaderStringData = NULL;
 	int ShaderFileLength = 0;
 
 	Microsoft::WRL::ComPtr<ID3D10Blob> ShaderBlob;
 
-	VertexShaders = new ID3D11VertexShader*[VERTEX_ARRAY_SIZE];
-	InputLayouts = new ID3D11InputLayout*[VERTEX_ARRAY_SIZE];
-
-	PixelShaders = new ID3D11PixelShader*[PIXEL_ARRAY_SIZE];
+	VertexShaders = new ID3D11VertexShader*[SHADER_SIZE];
+	InputLayouts = new ID3D11InputLayout*[SHADER_SIZE];
+	PixelShaders = new ID3D11PixelShader*[SHADER_SIZE];
 	
-	for (int i = 0; i < VERTEX_ARRAY_SIZE; ++i)
+	for (int i = 0; i < SHADER_SIZE; ++i)
 	{
-		BinaryReaderWriter::MallocFileDataInBuffer(VertexShaderFiles[i], ShaderStringData, ShaderFileLength);
+		BinaryReaderWriter::MallocFileDataInBuffer(ShaderFiles[i].VertexShaderName, ShaderStringData, ShaderFileLength);
 
 		if (ShaderStringData == NULL)
 		{
@@ -76,13 +66,13 @@ void BinaryCacheLoader::LoadShaders()
 		OutputDebugStringW(L"Created Shader");
 
 		Engine::device->CreateVertexShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), NULL, &VertexShaders[i]);
-		Engine::device->CreateInputLayout(VertexShaderLayouts[i], InputLayoutElementSizes[i], ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &InputLayouts[i]);
+		Engine::device->CreateInputLayout(ShaderFiles[i].LayoutType, ShaderFiles[i].ElementSize, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &InputLayouts[i]);
 		//Engine::device->CreateInputLayout(Constants::Layout_PackedInt, 3, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &InputLayouts[i]);
 	}
 
-	for (int i = 0; i < PIXEL_ARRAY_SIZE; ++i)
+	for (int i = 0; i < SHADER_SIZE; ++i)
 	{
-		BinaryReaderWriter::MallocFileDataInBuffer(PixelShaderFiles[i], ShaderStringData, ShaderFileLength);
+		BinaryReaderWriter::MallocFileDataInBuffer(ShaderFiles[i].PixelShaderName, ShaderStringData, ShaderFileLength);
 
 		if (ShaderStringData == NULL)
 		{
